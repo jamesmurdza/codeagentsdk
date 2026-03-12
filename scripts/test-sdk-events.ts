@@ -9,7 +9,8 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY!
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!
 
-const PROMPT = "Write a file called /tmp/test.txt with the content 'Hello World'. Just write the file, nothing else."
+const PROMPT =
+  "Write a file called /tmp/test.txt with the content 'Hello World'. Use the write/file tool only—do not run any shell commands."
 
 async function testProvider(name: string, providerType: "claude" | "codex" | "opencode" | "gemini", apiKey: string, envKey: string) {
   console.log("\n" + "=".repeat(70))
