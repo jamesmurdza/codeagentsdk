@@ -15,6 +15,15 @@ interface CodexMessageDelta {
   text: string
 }
 
+interface CodexItemCompleted {
+  type: "item.completed"
+  item: {
+    id: string
+    type: string
+    text?: string
+  }
+}
+
 interface CodexToolStart {
   type: "item.tool.start"
   name: string
@@ -48,6 +57,7 @@ interface CodexError {
 type CodexEvent =
   | CodexThreadStarted
   | CodexMessageDelta
+  | CodexItemCompleted
   | CodexToolStart
   | CodexToolInputDelta
   | CodexToolEnd
@@ -110,6 +120,11 @@ export class CodexProvider extends Provider {
       return { type: "token", text: json.text }
     }
 
+    // Item completed (full message)
+    if (json.type === "item.completed" && json.item?.text) {
+      return { type: "token", text: json.item.text }
+    }
+
     // Tool start
     if (json.type === "item.tool.start") {
       return { type: "tool_start", name: json.name }
@@ -128,6 +143,18 @@ export class CodexProvider extends Provider {
     // Turn complete
     if (json.type === "turn.completed") {
       return { type: "end" }
+    }
+
+    // Turn failed - treat as end with error info logged
+    if (json.type === "turn.failed") {
+      console.error("[Codex Error]", json.error?.message)
+      return { type: "end" }
+    }
+
+    // Error event - log and continue
+    if (json.type === "error") {
+      console.error("[Codex Error]", json.message)
+      return null
     }
 
     return null

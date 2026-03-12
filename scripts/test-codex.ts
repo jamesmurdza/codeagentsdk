@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * Test Codex provider with PTY streaming
+ * Test Codex provider
  */
 import { createSandbox, createProvider } from "../src/index.js"
 
@@ -30,29 +30,22 @@ async function main() {
     await sandbox.create()
     console.log("Sandbox created!")
 
-    // Check if codex is installed
-    console.log("\nChecking for Codex CLI...")
-    const whichResult = await sandbox.executeCommand("which codex || echo 'not found'")
-    console.log("which codex:", whichResult.output.trim())
+    // Install codex
+    console.log("\nInstalling Codex CLI...")
+    await sandbox.executeCommand("npm install -g @openai/codex", 120)
+    console.log("Installed!")
 
-    if (whichResult.output.includes("not found")) {
-      console.log("\nInstalling Codex CLI...")
-      const installResult = await sandbox.executeCommand("npm install -g @openai/codex", 120)
-      console.log("Install exit code:", installResult.exitCode)
-      if (installResult.exitCode !== 0) {
-        console.log("Install output:", installResult.output.slice(-500))
-        throw new Error("Failed to install Codex CLI")
-      }
-      console.log("Codex CLI installed!")
-    }
-
-    // Check version
-    const versionResult = await sandbox.executeCommand("codex --version")
-    console.log("Codex version:", versionResult.output.trim())
+    // Login to codex
+    console.log("\nLogging in to Codex...")
+    const loginResult = await sandbox.executeCommand(
+      `echo "${OPENAI_API_KEY}" | codex login --with-api-key 2>&1`,
+      30
+    )
+    console.log("Login result:", loginResult.output.trim())
 
     // Test with provider
     console.log("\n--- Testing Codex via SDK ---")
-    console.log("Prompt: \"Say hello\"")
+    console.log("Prompt: \"Say hello briefly\"")
     console.log()
 
     const provider = createProvider("codex", { sandbox })
@@ -62,7 +55,7 @@ async function main() {
 
     for await (const event of provider.run({
       prompt: "Say hello briefly",
-      autoInstall: false,
+      autoInstall: false, // Already installed
     })) {
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(2)
 
