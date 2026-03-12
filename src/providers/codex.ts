@@ -76,6 +76,9 @@ export class CodexProvider extends Provider {
     // JSON output for streaming events
     args.push("--json")
 
+    // Skip git repo check for sandbox environments
+    args.push("--skip-git-repo-check")
+
     if (this.sessionId || options?.sessionId) {
       // For resuming, we need a different command structure
       args.push("resume", this.sessionId || options!.sessionId!)
