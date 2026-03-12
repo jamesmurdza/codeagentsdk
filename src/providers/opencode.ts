@@ -167,15 +167,17 @@ export class OpenCodeProvider extends Provider {
 
     // Tool call start
     if (json.type === "tool_call") {
-      const toolName = json.part?.tool || "unknown"
-      return createToolStartEvent(toolName, json.part?.args)
+      const toolName = (json.part?.tool || "unknown").toLowerCase()
+      const normalized = toolName === "bash" ? "shell" : toolName
+      return createToolStartEvent(normalized, json.part?.args)
     }
 
     // Tool use (stream-json: emitted when tool completes; emit as tool_start so it appears in stream)
     if (json.type === "tool_use") {
-      const toolName = json.part?.tool || "unknown"
+      const toolName = (json.part?.tool || "unknown").toLowerCase()
+      const normalized = toolName === "bash" ? "shell" : toolName
       const raw = json.part as { state?: { input?: unknown } } | undefined
-      return createToolStartEvent(toolName, raw?.state?.input)
+      return createToolStartEvent(normalized, raw?.state?.input)
     }
 
     // Tool result - tool completed

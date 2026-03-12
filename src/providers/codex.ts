@@ -214,7 +214,7 @@ export class CodexProvider extends Provider {
       // file_change: emit tool_start then tool_end (Codex only sends item.completed) so output matches Claude
       if (it.type === "file_change" && it.changes && it.changes.length > 0) {
         const c = it.changes[0]
-        const input: WriteToolInput = { file_path: c.path, kind: c.kind as "add" | "update" }
+        const input: WriteToolInput = { file_path: c.path, kind: c.kind as "add" | "update", content: null }
         return [
           createToolStartEvent("write", input),
           { type: "tool_end", output: JSON.stringify(it.changes) },

@@ -17,11 +17,11 @@ export interface TokenEvent {
 /** Normalized tool names (same across Claude, Codex, etc.) */
 export type ToolName = "write" | "read" | "edit" | "glob" | "grep" | "shell"
 
-/** Input for the write tool (create/overwrite file). Codex may include `kind`. */
+/** Input for the write tool (create/overwrite file). Canonical: always include kind + content (nullable). */
 export interface WriteToolInput {
   file_path: string
-  content?: string
-  kind?: "add" | "update"
+  content: string | null
+  kind: "add" | "update"
 }
 
 /** Input for the read tool (path to file). Canonical: always file_path. */
@@ -82,10 +82,11 @@ export function createToolStartEvent(name: ToolName | string, rawInput?: unknown
   if (name === "write" && isObject(rawInput)) {
     const path = rawInput.file_path ?? rawInput.filePath ?? rawInput.path
     if (typeof path === "string") {
+      const kind = rawInput.kind === "add" || rawInput.kind === "update" ? rawInput.kind : "update"
       input = {
         file_path: path,
-        content: typeof rawInput.content === "string" ? rawInput.content : undefined,
-        kind: rawInput.kind === "add" || rawInput.kind === "update" ? rawInput.kind : undefined,
+        content: typeof rawInput.content === "string" ? rawInput.content : null,
+        kind,
       } satisfies WriteToolInput
     }
   } else if (name === "read" && isObject(rawInput)) {
