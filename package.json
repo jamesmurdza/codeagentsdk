@@ -1,5 +1,5 @@
 {
-  "name": "coding-agents",
+  "name": "coding-agents-sdk",
   "version": "0.1.0",
   "description": "A TypeScript SDK for interacting with various AI coding agents (Claude, Codex, OpenCode, Gemini)",
   "main": "dist/index.js",
