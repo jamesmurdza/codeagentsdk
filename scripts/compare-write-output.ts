@@ -3,7 +3,8 @@
  * Run Claude and Codex with the same write-file prompt and compare normalized event output.
  * Exit 0 if same, 1 if different.
  */
-import { createSandbox, createProvider } from "../src/index.js"
+import { Daytona } from "@daytonaio/sdk"
+import { createProvider } from "../src/index.js"
 import type { Event } from "../src/types/index.js"
 
 const DAYTONA_API_KEY = process.env.DAYTONA_API_KEY!
@@ -48,21 +49,23 @@ function normalize(e: Event): string {
 async function collectEvents(providerType: "claude" | "codex", prompt: string): Promise<Event[]> {
   const envKey = providerType === "claude" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"
   const apiKey = providerType === "claude" ? ANTHROPIC_API_KEY : OPENAI_API_KEY
-  const sandbox = createSandbox({ apiKey: DAYTONA_API_KEY, env: { [envKey]: apiKey } })
-  await sandbox.create()
+  const daytona = new Daytona({ apiKey: DAYTONA_API_KEY })
+  const sandbox = await daytona.create({
+    envVars: { [envKey]: apiKey },
+  })
+  if (providerType === "codex") {
+    await sandbox.process.executeCommand("npm install -g @openai/codex", undefined, undefined, 120)
+    await sandbox.process.executeCommand(`echo "${apiKey}" | codex login --with-api-key 2>&1`, undefined, undefined, 30)
+  }
   try {
-    if (providerType === "codex") {
-      await sandbox.executeCommand("npm install -g @openai/codex", 120)
-      await sandbox.executeCommand(`echo "${apiKey}" | codex login --with-api-key 2>&1`, 30)
-    }
-    const provider = createProvider(providerType, { sandbox })
+    const provider = createProvider(providerType, { sandbox, env: { [envKey]: apiKey } })
     const events: Event[] = []
     for await (const e of provider.run({ prompt, autoInstall: providerType !== "codex" })) {
       events.push(e)
     }
     return events
   } finally {
-    await sandbox.destroy()
+    await sandbox.delete()
   }
 }
 

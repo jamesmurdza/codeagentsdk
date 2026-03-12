@@ -4,7 +4,7 @@
  * Runs one prompt to get a thread_id, then resumes with a follow-up prompt,
  * capturing RAW stdout/stderr (not JSON-filtered).
  */
-import { createSandbox } from "../src/index.js"
+import { Daytona } from "@daytonaio/sdk"
 
 const DAYTONA_API_KEY = process.env.DAYTONA_API_KEY!
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY!
@@ -21,32 +21,34 @@ function extractThreadId(raw: string): string | null {
 }
 
 async function main() {
-  const sandbox = createSandbox({
-    apiKey: DAYTONA_API_KEY,
-    env: { OPENAI_API_KEY },
+  const daytona = new Daytona({ apiKey: DAYTONA_API_KEY })
+  const sandbox = await daytona.create({
+    envVars: { OPENAI_API_KEY },
   })
 
-  await sandbox.create()
   try {
-    await sandbox.executeCommand("npm install -g @openai/codex", 120)
-    await sandbox.executeCommand(`echo "${OPENAI_API_KEY}" | codex login --with-api-key 2>&1`, 30)
+    await sandbox.process.executeCommand("npm install -g @openai/codex", undefined, undefined, 120)
+    await sandbox.process.executeCommand(`echo "${OPENAI_API_KEY}" | codex login --with-api-key 2>&1`, undefined, undefined, 30)
 
-    const first = await sandbox.executeCommand(`codex exec --json --skip-git-repo-check --yolo "hi" 2>&1`, 60)
+    const first = await sandbox.process.executeCommand(`codex exec --json --skip-git-repo-check --yolo "hi" 2>&1`, undefined, undefined, 60)
+    const firstOutput = first.result ?? ""
     console.log("=== first (raw) ===")
-    console.log(first.output)
-    const threadId = extractThreadId(first.output)
+    console.log(firstOutput)
+    const threadId = extractThreadId(firstOutput)
     console.log("thread_id:", threadId)
 
     if (!threadId) process.exit(1)
 
-    const second = await sandbox.executeCommand(
+    const second = await sandbox.process.executeCommand(
       `codex exec --json --skip-git-repo-check --yolo resume ${threadId} "hey" 2>&1`,
+      undefined,
+      undefined,
       60
     )
     console.log("\n=== exec resume <id> (raw) ===")
-    console.log(second.output)
+    console.log(second.result ?? "")
   } finally {
-    await sandbox.destroy()
+    await sandbox.delete()
   }
 }
 

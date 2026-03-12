@@ -1,4 +1,4 @@
-import type { Event, ProviderCommand, ProviderName, RunOptions } from "../types/index.js"
+import type { Event, ProviderCommand, ProviderName, ProviderOptions, RunOptions } from "../types/index.js"
 import { createToolStartEvent } from "../types/events.js"
 import { safeJsonParse } from "../utils/json.js"
 import { Provider } from "./base.js"
@@ -19,6 +19,7 @@ interface GeminiAssistantDelta {
 interface GeminiToolStart {
   type: "tool.start"
   name: string
+  input?: unknown
 }
 
 interface GeminiToolDelta {
@@ -42,6 +43,23 @@ type GeminiEvent =
   | GeminiToolEnd
   | GeminiAssistantComplete
 
+// Map Gemini CLI tool names to canonical set (same as Claude/Codex)
+const GEMINI_TOOL_NAME_MAP: Record<string, string> = {
+  execute_code: "shell",
+  run_command: "shell",
+  bash: "shell",
+  write_file: "write",
+  read_file: "read",
+  apply_patch: "edit",
+  glob_file_search: "glob",
+  grep_search: "grep",
+}
+
+function normalizeGeminiToolName(name: string): string {
+  const lower = name.toLowerCase()
+  return GEMINI_TOOL_NAME_MAP[lower] ?? GEMINI_TOOL_NAME_MAP[name] ?? lower
+}
+
 /**
  * Google Gemini CLI provider
  *
@@ -49,6 +67,8 @@ type GeminiEvent =
  */
 export class GeminiProvider extends Provider {
   readonly name: ProviderName = "gemini"
+  /** Accumulated tool output between tool.start and tool.end */
+  private toolOutputBuffer = ""
 
   constructor(options: ProviderOptions) {
     super(options)
@@ -102,17 +122,22 @@ export class GeminiProvider extends Provider {
 
     // Tool start
     if (json.type === "tool.start") {
-      return createToolStartEvent(json.name, undefined)
+      this.toolOutputBuffer = ""
+      const name = normalizeGeminiToolName(json.name)
+      return createToolStartEvent(name, json.input)
     }
 
-    // Tool delta
+    // Tool delta (streaming tool input or output)
     if (json.type === "tool.delta") {
+      this.toolOutputBuffer += json.text
       return { type: "tool_delta", text: json.text }
     }
 
     // Tool end
     if (json.type === "tool.end") {
-      return { type: "tool_end" }
+      const output = this.toolOutputBuffer.trim() || undefined
+      this.toolOutputBuffer = ""
+      return { type: "tool_end", output }
     }
 
     // Assistant complete

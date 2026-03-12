@@ -11,12 +11,12 @@ import { Provider, ClaudeProvider, CodexProvider, OpenCodeProvider, GeminiProvid
  *
  * @example
  * ```typescript
- * // With sandbox (recommended)
- * const sandbox = createSandbox({ apiKey: process.env.DAYTONA_API_KEY })
- * await sandbox.create()
- * const provider = createProvider("claude", { sandbox })
+ * import { Daytona } from "@daytonaio/sdk"
+ * const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
+ * const sandbox = await daytona.create({ envVars: { ... } })
+ * const provider = createProvider("claude", { sandbox, env: { ANTHROPIC_API_KEY: "..." } })
  *
- * // With dangerous local execution
+ * // Or with dangerous local execution:
  * const provider = createProvider("claude", { dangerouslyAllowLocalExecution: true })
  * ```
  */

@@ -32,8 +32,15 @@ The SDK invokes each provider’s CLI as follows (optional flags in brackets):
 
 ## Installation
 
+Install the SDK:
+
 ```bash
 npm install code-agent-sdk
+```
+
+For sandboxed execution, install the Daytona SDK:
+```bash
+npm install @daytonaio/sdk
 ```
 
 ## Prerequisites
@@ -48,43 +55,36 @@ If you prefer to run locally without a sandbox, see [Local Mode](#local-mode-dan
 
 ## Quick Start
 
-### 1. Create a Sandbox
+### 1. Create a sandbox (Daytona SDK)
 
 ```typescript
-import { createSandbox, createSession } from "code-agent-sdk"
+import { Daytona } from "@daytonaio/sdk"
+import { createSession } from "code-agent-sdk"
 
-// Create sandbox with your API keys
-const sandbox = createSandbox({
-  apiKey: process.env.DAYTONA_API_KEY,
-  env: {
-    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-  },
+const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
+const sandbox = await daytona.create({
+  envVars: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY },
 })
-
-await sandbox.create()
 ```
 
-### 2. Create a Session
+### 2. Create a session
 
 ```typescript
 const claude = createSession("claude", {
   sandbox,
+  env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY },
   model: "sonnet",
   timeout: 120,
   autoInstall: true,
 })
 ```
 
-### 3. Stream Responses
+### 3. Stream responses
 
 ```typescript
-for await (const event of claude.run({ prompt: "Hello!" })) {
-  if (event.type === "token") {
-    process.stdout.write(event.text)
-  }
-  if (event.type === "tool_start") {
-    console.log(`\n[Tool: ${event.name}]`)  // event.input is typed by name
-  }
+for await (const event of claude.run("Hello!")) {
+  if (event.type === "token") process.stdout.write(event.text)
+  if (event.type === "tool_start") console.log(`\n[Tool: ${event.name}]`)
   if (event.type === "end") break
 }
 ```
@@ -92,23 +92,23 @@ for await (const event of claude.run({ prompt: "Hello!" })) {
 ### 4. Cleanup
 
 ```typescript
-await sandbox.destroy()
+await sandbox.delete()
 ```
 
 ## Full Example
 
 ```typescript
-import { createSandbox, createSession } from "code-agent-sdk"
+import { Daytona } from "@daytonaio/sdk"
+import { createSession } from "code-agent-sdk"
 
 async function main() {
-  const sandbox = createSandbox({
-    apiKey: process.env.DAYTONA_API_KEY,
-    env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY },
+  const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
+  const sandbox = await daytona.create({
+    envVars: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY },
   })
-  await sandbox.create()
 
   try {
-    const session = createSession("claude", { sandbox })
+    const session = createSession("claude", { sandbox, env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } })
 
     for await (const event of session.run("List /tmp then write /tmp/out.txt with 'done'")) {
       switch (event.type) {
@@ -136,7 +136,7 @@ async function main() {
       }
     }
   } finally {
-    await sandbox.destroy()
+    await sandbox.delete()
   }
 }
 
@@ -145,30 +145,13 @@ main()
 
 ## API Reference
 
-### createSandbox(config)
-
-Creates a sandbox manager for secure CLI execution.
-
-```typescript
-const sandbox = createSandbox({
-  apiKey: string,              // Daytona API key (required)
-  serverUrl?: string,          // Daytona server URL
-  target?: string,             // Target region
-  autoStopTimeout?: number,    // Auto-stop timeout in seconds
-  env?: Record<string, string> // Environment variables for CLI
-})
-
-await sandbox.create()         // Initialize the sandbox
-await sandbox.destroy()        // Cleanup when done
-```
-
 ### createProvider(name, options)
 
 Creates a low-level provider instance (advanced). For most use-cases, prefer `createSession()` so you can set defaults once.
 
 ```typescript
-// With sandbox (recommended)
-const provider = createProvider("claude", { sandbox })
+// With sandbox (recommended): pass a Daytona Sandbox from daytona.create()
+const provider = createProvider("claude", { sandbox, env: { ANTHROPIC_API_KEY: "..." } })
 
 // With dangerous local execution (use with caution!)
 const provider = createProvider("claude", {
@@ -254,7 +237,6 @@ The SDK emits typed events: when you narrow on `event.name`, `event.input` is ty
 
 ```typescript
 import {
-  createSandbox,
   createProvider,
   type WriteToolInput,
   type ShellToolInput,
@@ -312,13 +294,9 @@ Each provider supports specifying a model via the `model` option. With sessions,
 ### Claude Models
 
 ```typescript
-const sandbox = createSandbox({
-  apiKey: process.env.DAYTONA_API_KEY,
-  env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY },
-})
-await sandbox.create()
-
-const claude = createSession("claude", { sandbox })
+const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
+const sandbox = await daytona.create({ envVars: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } })
+const claude = createSession("claude", { sandbox, env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } })
 
 // Use model alias (recommended)
 await claude.run("Hello", { model: "sonnet" })
@@ -334,13 +312,9 @@ See [Claude Code model configuration](https://code.claude.com/docs/en/model-conf
 ### Codex Models
 
 ```typescript
-const sandbox = createSandbox({
-  apiKey: process.env.DAYTONA_API_KEY,
-  env: { OPENAI_API_KEY: process.env.OPENAI_API_KEY },
-})
-await sandbox.create()
-
-const codex = createSession("codex", { sandbox })
+const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
+const sandbox = await daytona.create({ envVars: { OPENAI_API_KEY: process.env.OPENAI_API_KEY } })
+const codex = createSession("codex", { sandbox, env: { OPENAI_API_KEY: process.env.OPENAI_API_KEY } })
 
 await codex.run("Hello", { model: "gpt-4o" })
 await codex.run("Hello", { model: "o1" })
@@ -352,13 +326,9 @@ See [Codex CLI models](https://developers.openai.com/codex/models) for all avail
 ### Gemini Models
 
 ```typescript
-const sandbox = createSandbox({
-  apiKey: process.env.DAYTONA_API_KEY,
-  env: { GOOGLE_API_KEY: process.env.GOOGLE_API_KEY },
-})
-await sandbox.create()
-
-const gemini = createSession("gemini", { sandbox })
+const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
+const sandbox = await daytona.create({ envVars: { GOOGLE_API_KEY: process.env.GOOGLE_API_KEY } })
+const gemini = createSession("gemini", { sandbox, env: { GOOGLE_API_KEY: process.env.GOOGLE_API_KEY } })
 
 await gemini.run("Hello", { model: "gemini-2.0-flash" })
 await gemini.run("Hello", { model: "gemini-1.5-pro" })
@@ -369,13 +339,9 @@ See [Gemini CLI model selection](https://geminicli.com/docs/cli/model) for all a
 ### OpenCode Models
 
 ```typescript
-const sandbox = createSandbox({
-  apiKey: process.env.DAYTONA_API_KEY,
-  env: { OPENAI_API_KEY: process.env.OPENAI_API_KEY },
-})
-await sandbox.create()
-
-const opencode = createSession("opencode", { sandbox })
+const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
+const sandbox = await daytona.create({ envVars: { OPENAI_API_KEY: process.env.OPENAI_API_KEY } })
+const opencode = createSession("opencode", { sandbox, env: { OPENAI_API_KEY: process.env.OPENAI_API_KEY } })
 
 // Format: "provider/model"
 await opencode.run("Hello", { model: "openai/gpt-4o" })           // Default
@@ -468,11 +434,11 @@ Goodbye!
 
 ## How It Works
 
-1. **Sandbox Creation**: A Daytona sandbox is created with your environment variables
+1. **Sandbox**: You create a Daytona sandbox with `@daytonaio/sdk` and pass it directly to createProvider/createSession
 2. **CLI Installation**: The provider CLI (claude, codex, etc.) is auto-installed in the sandbox
 3. **PTY Streaming**: Commands run via PTY for real-time output streaming
 4. **Event Parsing**: JSON output is parsed into typed events
-5. **Cleanup**: Sandbox is destroyed when done
+5. **Cleanup**: You destroy the sandbox when done (e.g. `await sandbox.delete()`)
 
 ```
 ┌─────────────┐     ┌──────────────────────────────────────┐

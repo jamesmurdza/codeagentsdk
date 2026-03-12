@@ -2,7 +2,8 @@
 /**
  * Full SDK test
  */
-import { createSandbox, createProvider } from "../src/index.js"
+import { Daytona } from "@daytonaio/sdk"
+import { createProvider } from "../src/index.js"
 
 const DAYTONA_API_KEY = process.env.DAYTONA_API_KEY
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
@@ -17,22 +18,16 @@ async function main() {
   console.log("Code Agent SDK - Full Test")
   console.log("============================================================")
 
-  // Create sandbox with env
   console.log("\n1. Creating sandbox with ANTHROPIC_API_KEY...")
-  const sandbox = createSandbox({
-    apiKey: DAYTONA_API_KEY,
-    env: {
-      ANTHROPIC_API_KEY: ANTHROPIC_API_KEY,
-    },
+  const daytona = new Daytona({ apiKey: DAYTONA_API_KEY })
+  const sandbox = await daytona.create({
+    envVars: { ANTHROPIC_API_KEY: ANTHROPIC_API_KEY },
   })
-
-  await sandbox.create()
   console.log("   ✓ Sandbox created")
 
   try {
-    // Create provider
     console.log("\n2. Creating Claude provider...")
-    const provider = createProvider("claude", { sandbox })
+    const provider = createProvider("claude", { sandbox, env: { ANTHROPIC_API_KEY: ANTHROPIC_API_KEY } })
     console.log("   ✓ Provider created")
 
     // Test collectText
@@ -70,7 +65,7 @@ async function main() {
 
   } finally {
     console.log("\n5. Destroying sandbox...")
-    await sandbox.destroy()
+    await sandbox.delete()
     console.log("   ✓ Sandbox destroyed")
   }
 

@@ -2,28 +2,22 @@
  * Code Agent SDK
  *
  * A TypeScript SDK for interacting with various AI coding agents.
- * All providers run in a secure Daytona sandbox by default.
+ * Create a sandbox with @daytonaio/sdk and pass it to createProvider/createSession.
  *
  * @example
  * ```typescript
- * import { createSandbox, createProvider } from "code-agent-sdk"
+ * import { Daytona } from "@daytonaio/sdk"
+ * import { createProvider } from "code-agent-sdk"
  *
- * // Create a sandbox
- * const sandbox = createSandbox({ apiKey: process.env.DAYTONA_API_KEY })
- * await sandbox.create()
+ * const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
+ * const sandbox = await daytona.create({ envVars: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } })
+ * const provider = createProvider("claude", { sandbox, env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } })
  *
- * // Create a provider with the sandbox
- * const provider = createProvider("claude", { sandbox })
- *
- * // Run the provider
  * for await (const event of provider.run({ prompt: "Hello" })) {
- *   if (event.type === "token") {
- *     process.stdout.write(event.text)
- *   }
+ *   if (event.type === "token") process.stdout.write(event.text)
  * }
  *
- * // Cleanup
- * await sandbox.destroy()
+ * await sandbox.delete()
  * ```
  */
 
@@ -51,14 +45,12 @@ export type {
   ProviderOptions,
   EventHandler,
   IProvider,
-  SandboxConfig,
+  CodeAgentSandbox,
+  AdaptSandboxOptions,
 } from "./types/index.js"
 
-// Sandbox
-export {
-  SandboxManager,
-  createSandbox,
-} from "./sandbox/index.js"
+// Sandbox adapter (wrap a Daytona sandbox from @daytonaio/sdk)
+export { adaptDaytonaSandbox } from "./sandbox/index.js"
 
 // Providers
 export {

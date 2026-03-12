@@ -91,11 +91,11 @@ describe("GeminiProvider", () => {
       expect(event).toEqual({ type: "token", text: "Sure, I can help" })
     })
 
-    it("should parse tool.start event", () => {
+    it("should parse tool.start event and normalize name", () => {
       const provider = createTestProvider()
       const event = provider.parse('{"type": "tool.start", "name": "execute_code"}')
 
-      expect(event).toEqual({ type: "tool_start", name: "execute_code" })
+      expect(event).toEqual({ type: "tool_start", name: "shell", input: undefined })
     })
 
     it("should parse tool.delta event", () => {
@@ -105,11 +105,13 @@ describe("GeminiProvider", () => {
       expect(event).toEqual({ type: "tool_delta", text: "running..." })
     })
 
-    it("should parse tool.end event", () => {
+    it("should parse tool.end event with accumulated output", () => {
       const provider = createTestProvider()
+      provider.parse('{"type": "tool.start", "name": "write_file"}')
+      provider.parse('{"type": "tool.delta", "text": "done"}')
       const event = provider.parse('{"type": "tool.end"}')
 
-      expect(event).toEqual({ type: "tool_end" })
+      expect(event).toEqual({ type: "tool_end", output: "done" })
     })
 
     it("should parse assistant.complete event", () => {

@@ -2,7 +2,9 @@
 /**
  * Test script to capture what "write file" tool calls look like for each provider
  */
-import { createSandbox, createProvider } from "../src/index.js"
+import { Daytona } from "@daytonaio/sdk"
+import { createProvider } from "../src/index.js"
+import type { Sandbox } from "@daytonaio/sdk"
 
 const DAYTONA_API_KEY = process.env.DAYTONA_API_KEY
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
@@ -12,7 +14,8 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 async function testProvider(
   name: string,
   providerType: "claude" | "codex" | "gemini" | "opencode",
-  sandbox: any,
+  sandbox: Sandbox,
+  env: Record<string, string>,
   extraSetup?: () => Promise<void>
 ) {
   console.log("\n" + "=".repeat(70))
@@ -22,7 +25,7 @@ async function testProvider(
   try {
     if (extraSetup) await extraSetup()
 
-    const provider = createProvider(providerType, { sandbox })
+    const provider = createProvider(providerType, { sandbox, env })
 
     let toolOutput = ""
     let currentToolName = ""
@@ -70,75 +73,57 @@ async function main() {
   console.log("  Testing Write File Tool Calls for All Providers")
   console.log("============================================================")
 
-  // Test Claude
-  if (ANTHROPIC_API_KEY) {
+  if (ANTHROPIC_API_KEY && DAYTONA_API_KEY) {
     console.log("\n--- Creating sandbox for Claude ---")
-    const sandbox = createSandbox({
-      apiKey: DAYTONA_API_KEY!,
-      env: { ANTHROPIC_API_KEY },
-    })
-    await sandbox.create()
+    const daytona = new Daytona({ apiKey: DAYTONA_API_KEY })
+    const sandbox = await daytona.create({ envVars: { ANTHROPIC_API_KEY } })
     try {
-      await testProvider("Claude", "claude", sandbox)
+      await testProvider("Claude", "claude", sandbox, { ANTHROPIC_API_KEY })
     } finally {
-      await sandbox.destroy()
+      await sandbox.delete()
     }
   } else {
     console.log("\nSkipping Claude (no ANTHROPIC_API_KEY)")
   }
 
-  // Test Codex
-  if (OPENAI_API_KEY) {
+  if (OPENAI_API_KEY && DAYTONA_API_KEY) {
     console.log("\n--- Creating sandbox for Codex ---")
-    const sandbox = createSandbox({
-      apiKey: DAYTONA_API_KEY!,
-      env: { OPENAI_API_KEY },
-    })
-    await sandbox.create()
+    const daytona = new Daytona({ apiKey: DAYTONA_API_KEY })
+    const sandbox = await daytona.create({ envVars: { OPENAI_API_KEY } })
+    console.log("Installing Codex CLI...")
+    await sandbox.process.executeCommand("npm install -g @openai/codex", undefined, undefined, 120)
+    console.log("Logging in...")
+    await sandbox.process.executeCommand(`echo "${OPENAI_API_KEY}" | codex login --with-api-key 2>&1`, undefined, undefined, 30)
     try {
-      // Install and login codex
-      console.log("Installing Codex CLI...")
-      await sandbox.executeCommand("npm install -g @openai/codex", 120)
-      console.log("Logging in...")
-      await sandbox.executeCommand(`echo "${OPENAI_API_KEY}" | codex login --with-api-key 2>&1`, 30)
-
-      await testProvider("Codex", "codex", sandbox)
+      await testProvider("Codex", "codex", sandbox, { OPENAI_API_KEY })
     } finally {
-      await sandbox.destroy()
+      await sandbox.delete()
     }
   } else {
     console.log("\nSkipping Codex (no OPENAI_API_KEY)")
   }
 
-  // Test Gemini
-  if (GEMINI_API_KEY) {
+  if (GEMINI_API_KEY && DAYTONA_API_KEY) {
     console.log("\n--- Creating sandbox for Gemini ---")
-    const sandbox = createSandbox({
-      apiKey: DAYTONA_API_KEY!,
-      env: { GOOGLE_API_KEY: GEMINI_API_KEY },
-    })
-    await sandbox.create()
+    const daytona = new Daytona({ apiKey: DAYTONA_API_KEY })
+    const sandbox = await daytona.create({ envVars: { GOOGLE_API_KEY: GEMINI_API_KEY } })
     try {
-      await testProvider("Gemini", "gemini", sandbox)
+      await testProvider("Gemini", "gemini", sandbox, { GOOGLE_API_KEY: GEMINI_API_KEY })
     } finally {
-      await sandbox.destroy()
+      await sandbox.delete()
     }
   } else {
     console.log("\nSkipping Gemini (no GEMINI_API_KEY)")
   }
 
-  // Test OpenCode
-  if (OPENAI_API_KEY) {
+  if (OPENAI_API_KEY && DAYTONA_API_KEY) {
     console.log("\n--- Creating sandbox for OpenCode ---")
-    const sandbox = createSandbox({
-      apiKey: DAYTONA_API_KEY!,
-      env: { OPENAI_API_KEY },
-    })
-    await sandbox.create()
+    const daytona = new Daytona({ apiKey: DAYTONA_API_KEY })
+    const sandbox = await daytona.create({ envVars: { OPENAI_API_KEY } })
     try {
-      await testProvider("OpenCode", "opencode", sandbox)
+      await testProvider("OpenCode", "opencode", sandbox, { OPENAI_API_KEY })
     } finally {
-      await sandbox.destroy()
+      await sandbox.delete()
     }
   } else {
     console.log("\nSkipping OpenCode (no OPENAI_API_KEY)")

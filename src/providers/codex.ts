@@ -1,4 +1,4 @@
-import type { Event, ProviderCommand, ProviderName, RunOptions } from "../types/index.js"
+import type { Event, ProviderCommand, ProviderName, ProviderOptions, RunOptions } from "../types/index.js"
 import type { ShellToolInput, WriteToolInput } from "../types/events.js"
 import { createToolStartEvent } from "../types/events.js"
 import { safeJsonParse } from "../utils/json.js"

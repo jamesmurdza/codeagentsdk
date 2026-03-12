@@ -7,6 +7,16 @@ import type { Event } from "./events.js"
 /** Supported provider names */
 export type ProviderName = "claude" | "codex" | "opencode" | "gemini"
 
+/**
+ * Sandbox interface required by the SDK. Implement this yourself or use
+ * adaptDaytonaSandbox() to wrap a Daytona Sandbox from @daytonaio/sdk.
+ */
+export interface CodeAgentSandbox {
+  ensureProvider(name: ProviderName): Promise<void>
+  setEnvVars(vars: Record<string, string>): void
+  executeCommandStream(command: string, timeout?: number): AsyncGenerator<string, void, unknown>
+}
+
 /** Command configuration for spawning a provider process */
 export interface ProviderCommand {
   cmd: string
@@ -14,19 +24,9 @@ export interface ProviderCommand {
   env?: Record<string, string>
 }
 
-/**
- * Sandbox configuration options
- */
-export interface SandboxConfig {
-  /** Daytona API key (defaults to DAYTONA_API_KEY env var) */
-  apiKey?: string
-  /** Daytona server URL (defaults to DAYTONA_SERVER_URL env var) */
-  serverUrl?: string
-  /** Target region for sandbox */
-  target?: string
-  /** Auto-stop timeout in seconds (0 to disable) */
-  autoStopTimeout?: number
-  /** Custom environment variables for the sandbox */
+/** Options when adapting a Daytona sandbox for use with the SDK */
+export interface AdaptSandboxOptions {
+  /** Environment variables for CLI execution (e.g. ANTHROPIC_API_KEY) */
   env?: Record<string, string>
 }
 
@@ -55,10 +55,13 @@ export interface RunOptions {
 /** Options for creating a provider */
 export interface ProviderOptions {
   /**
-   * Sandbox manager for secure execution (recommended)
-   * If not provided, must set dangerouslyAllowLocalExecution: true
+   * Sandbox for secure execution. Pass a Sandbox from @daytonaio/sdk directly
+   * (the SDK adapts it internally). Optional env here is used for CLI execution.
    */
-  sandbox?: import("../sandbox/index.js").SandboxManager
+  sandbox?: CodeAgentSandbox | import("@daytonaio/sdk").Sandbox
+
+  /** Environment variables for CLI execution (e.g. when sandbox is a Daytona Sandbox) */
+  env?: Record<string, string>
 
   /**
    * Allow running commands directly on local machine without sandbox.

@@ -2,7 +2,8 @@
 /**
  * Test PTY streaming with real-time output
  */
-import { createSandbox, createProvider } from "../src/index.js"
+import { Daytona } from "@daytonaio/sdk"
+import { createProvider } from "../src/index.js"
 
 const DAYTONA_API_KEY = process.env.DAYTONA_API_KEY
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
@@ -19,23 +20,18 @@ async function main() {
   console.log()
 
   console.log("Creating sandbox...")
-  const sandbox = createSandbox({
-    apiKey: DAYTONA_API_KEY,
-    env: {
-      ANTHROPIC_API_KEY: ANTHROPIC_API_KEY,
-    },
+  const daytona = new Daytona({ apiKey: DAYTONA_API_KEY })
+  const sandbox = await daytona.create({
+    envVars: { ANTHROPIC_API_KEY: ANTHROPIC_API_KEY },
   })
 
   try {
-    await sandbox.create()
     console.log("Sandbox created!\n")
-
-    // Test the SDK with PTY streaming
     console.log("--- Testing Claude via SDK with PTY streaming ---")
     console.log("Prompt: \"Count slowly from 1 to 5\"")
     console.log()
 
-    const provider = createProvider("claude", { sandbox })
+    const provider = createProvider("claude", { sandbox, env: { ANTHROPIC_API_KEY: ANTHROPIC_API_KEY } })
 
     console.log("Response (streaming in real-time):")
     const startTime = Date.now()
@@ -64,7 +60,7 @@ async function main() {
     throw error
   } finally {
     console.log("\nDestroying sandbox...")
-    await sandbox.destroy()
+    await sandbox.delete()
     console.log("Done!")
   }
 }

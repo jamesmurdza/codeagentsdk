@@ -2,7 +2,8 @@
 /**
  * Test Codex provider
  */
-import { createSandbox, createProvider } from "../src/index.js"
+import { Daytona } from "@daytonaio/sdk"
+import { createProvider } from "../src/index.js"
 
 const DAYTONA_API_KEY = process.env.DAYTONA_API_KEY
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
@@ -19,36 +20,32 @@ async function main() {
   console.log()
 
   console.log("Creating sandbox...")
-  const sandbox = createSandbox({
-    apiKey: DAYTONA_API_KEY,
-    env: {
-      OPENAI_API_KEY: OPENAI_API_KEY,
-    },
+  const daytona = new Daytona({ apiKey: DAYTONA_API_KEY })
+  const sandbox = await daytona.create({
+    envVars: { OPENAI_API_KEY: OPENAI_API_KEY },
   })
 
   try {
-    await sandbox.create()
     console.log("Sandbox created!")
 
-    // Install codex
     console.log("\nInstalling Codex CLI...")
-    await sandbox.executeCommand("npm install -g @openai/codex", 120)
+    await sandbox.process.executeCommand("npm install -g @openai/codex", undefined, undefined, 120)
     console.log("Installed!")
 
-    // Login to codex
     console.log("\nLogging in to Codex...")
-    const loginResult = await sandbox.executeCommand(
+    const loginResult = await sandbox.process.executeCommand(
       `echo "${OPENAI_API_KEY}" | codex login --with-api-key 2>&1`,
+      undefined,
+      undefined,
       30
     )
-    console.log("Login result:", loginResult.output.trim())
+    console.log("Login result:", (loginResult.result ?? "").trim())
 
-    // Test with provider
     console.log("\n--- Testing Codex via SDK ---")
     console.log("Prompt: \"Say hello briefly\"")
     console.log()
 
-    const provider = createProvider("codex", { sandbox })
+    const provider = createProvider("codex", { sandbox, env: { OPENAI_API_KEY: OPENAI_API_KEY } })
 
     console.log("Response (streaming):")
     const startTime = Date.now()
@@ -77,7 +74,7 @@ async function main() {
     throw error
   } finally {
     console.log("\nDestroying sandbox...")
-    await sandbox.destroy()
+    await sandbox.delete()
     console.log("Done!")
   }
 }

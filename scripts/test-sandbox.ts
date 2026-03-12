@@ -2,7 +2,8 @@
 /**
  * Integration test using Daytona sandbox
  */
-import { createSandbox, createProvider } from "../src/index.js"
+import { Daytona } from "@daytonaio/sdk"
+import { createProvider } from "../src/index.js"
 
 const DAYTONA_API_KEY = process.env.DAYTONA_API_KEY
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
@@ -18,23 +19,18 @@ async function main() {
   console.log("=".repeat(60))
   console.log()
 
-  // Step 1: Create sandbox
   console.log("1. Creating Daytona sandbox...")
-  const sandbox = createSandbox({
-    apiKey: DAYTONA_API_KEY,
-    env: {
-      ANTHROPIC_API_KEY: ANTHROPIC_API_KEY,
-    },
+  const daytona = new Daytona({ apiKey: DAYTONA_API_KEY })
+  const sandbox = await daytona.create({
+    envVars: { ANTHROPIC_API_KEY: ANTHROPIC_API_KEY },
   })
 
   try {
-    await sandbox.create()
     console.log("   ✓ Sandbox created successfully")
     console.log()
 
-    // Step 2: Create provider with sandbox
     console.log("2. Creating Claude provider with sandbox...")
-    const provider = createProvider("claude", { sandbox })
+    const provider = createProvider("claude", { sandbox, env: { ANTHROPIC_API_KEY: ANTHROPIC_API_KEY } })
     console.log("   ✓ Provider created")
     console.log()
 
@@ -75,7 +71,7 @@ async function main() {
     // Step 4: Cleanup
     console.log()
     console.log("4. Destroying sandbox...")
-    await sandbox.destroy()
+    await sandbox.delete()
     console.log("   ✓ Sandbox destroyed")
     console.log()
     console.log("=".repeat(60))

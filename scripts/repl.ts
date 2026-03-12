@@ -14,7 +14,8 @@
  *   OPENCODE_API_KEY - Required for opencode provider (or provider-specific key)
  */
 import * as readline from "node:readline"
-import { createSandbox, createProvider, getProviderNames, isValidProvider, type ProviderName } from "../src/index.js"
+import { Daytona } from "@daytonaio/sdk"
+import { createProvider, getProviderNames, isValidProvider, type ProviderName } from "../src/index.js"
 
 // Provider -> API key environment variable mapping
 const PROVIDER_API_KEYS: Record<ProviderName, { envVar: string; name: string }> = {
@@ -106,29 +107,23 @@ async function main() {
   console.log("============================================================")
   console.log()
   console.log("Creating sandbox...")
-
-  const sandbox = createSandbox({
-    apiKey: DAYTONA_API_KEY,
-    env: {
-      // Pass the appropriate API key to the sandbox
-      [providerKeyConfig.envVar]: PROVIDER_API_KEY!,
-    },
+  const daytona = new Daytona({ apiKey: DAYTONA_API_KEY })
+  const sandbox = await daytona.create({
+    envVars: { [providerKeyConfig.envVar]: PROVIDER_API_KEY! },
   })
-
-  await sandbox.create()
   console.log("Sandbox created!")
   console.log()
 
-  // Provider-specific setup inside sandbox
   if (selectedProvider === "codex") {
     console.log("Preparing Codex CLI (install + login)...")
-    await sandbox.executeCommand("npm install -g @openai/codex", 120)
-    await sandbox.executeCommand(`echo "${PROVIDER_API_KEY}" | codex login --with-api-key 2>&1`, 30)
+    await sandbox.process.executeCommand("npm install -g @openai/codex", undefined, undefined, 120)
+    await sandbox.process.executeCommand(`echo "${PROVIDER_API_KEY}" | codex login --with-api-key 2>&1`, undefined, undefined, 30)
     console.log("Codex CLI ready.")
     console.log()
   }
 
-  const provider = createProvider(selectedProvider, { sandbox })
+  const env = { [providerKeyConfig.envVar]: PROVIDER_API_KEY! }
+  const provider = createProvider(selectedProvider, { sandbox, env })
   console.log(`${selectedProvider.charAt(0).toUpperCase() + selectedProvider.slice(1)} provider ready.`)
   console.log()
   console.log("Commands:")
@@ -154,7 +149,7 @@ async function main() {
 
       if (trimmed === "/quit" || trimmed === "/exit") {
         console.log("\nDestroying sandbox...")
-        await sandbox.destroy()
+        await sandbox.delete()
         console.log("Goodbye!")
         rl.close()
         process.exit(0)
@@ -240,7 +235,7 @@ async function main() {
   // Handle Ctrl+C gracefully
   rl.on("close", async () => {
     console.log("\nDestroying sandbox...")
-    await sandbox.destroy()
+    await sandbox.delete()
     console.log("Goodbye!")
     process.exit(0)
   })

@@ -2,7 +2,8 @@
 /**
  * Test Claude's write file tool call output
  */
-import { createSandbox, createProvider } from "../src/index.js"
+import { Daytona } from "@daytonaio/sdk"
+import { createProvider } from "../src/index.js"
 
 const DAYTONA_API_KEY = process.env.DAYTONA_API_KEY!
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!
@@ -10,16 +11,14 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!
 async function main() {
   console.log("=== Claude Write File Tool Test ===\n")
 
-  const sandbox = createSandbox({
-    apiKey: DAYTONA_API_KEY,
-    env: { ANTHROPIC_API_KEY },
+  const daytona = new Daytona({ apiKey: DAYTONA_API_KEY })
+  const sandbox = await daytona.create({
+    envVars: { ANTHROPIC_API_KEY },
   })
-
-  await sandbox.create()
   console.log("Sandbox created\n")
 
   try {
-    const provider = createProvider("claude", { sandbox })
+    const provider = createProvider("claude", { sandbox, env: { ANTHROPIC_API_KEY } })
 
     let toolOutput = ""
     let currentToolName = ""
@@ -56,7 +55,7 @@ async function main() {
       }
     }
   } finally {
-    await sandbox.destroy()
+    await sandbox.delete()
     console.log("Sandbox destroyed")
   }
 }
