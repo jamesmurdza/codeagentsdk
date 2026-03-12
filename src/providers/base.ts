@@ -45,7 +45,7 @@ export abstract class Provider implements IProvider {
   /**
    * Parse a line of output into an event
    */
-  abstract parse(line: string): Event | null
+  abstract parse(line: string): Event | Event[] | null
 
   /**
    * Run the provider and yield events as an async generator
@@ -96,18 +96,22 @@ export abstract class Provider implements IProvider {
 
     const timeout = options.timeout ?? 120
 
-    // Use PTY streaming for real-time output
+    let pendingToolEnd = false
     for await (const line of this.sandboxManager.executeCommandStream(fullCommand, timeout)) {
-      const event = this.parse(line)
-      if (!event) continue
-
-      if (event.type === "session") {
-        this.sessionId = event.id
+      const raw = this.parse(line)
+      const events = raw === null ? [] : Array.isArray(raw) ? raw : [raw]
+      for (const event of events) {
+        if (event.type === "session") {
+          this.sessionId = event.id
+        }
+        if (event.type === "tool_start") pendingToolEnd = true
+        if (event.type === "tool_end") pendingToolEnd = false
+        if (event.type === "end" && pendingToolEnd) {
+          yield { type: "tool_end" }
+          pendingToolEnd = false
+        }
         yield event
-        continue
       }
-
-      yield event
     }
   }
 
@@ -140,21 +144,26 @@ export abstract class Provider implements IProvider {
     })
 
     const rl = readline.createInterface({ input: proc.stdout! })
+    let pendingToolEnd = false
 
     for await (const line of rl) {
-      const event = this.parse(line)
-      if (!event) continue
-
-      if (event.type === "session") {
-        this.sessionId = event.id
-        if (options.persistSession !== false) {
-          storeSession(sessionFile, event.id)
+      const raw = this.parse(line)
+      const events = raw === null ? [] : Array.isArray(raw) ? raw : [raw]
+      for (const event of events) {
+        if (event.type === "session") {
+          this.sessionId = event.id
+          if (options.persistSession !== false) {
+            storeSession(sessionFile, event.id)
+          }
+        }
+        if (event.type === "tool_start") pendingToolEnd = true
+        if (event.type === "tool_end") pendingToolEnd = false
+        if (event.type === "end" && pendingToolEnd) {
+          yield { type: "tool_end" }
+          pendingToolEnd = false
         }
         yield event
-        continue
       }
-
-      yield event
     }
 
     // Wait for process to close

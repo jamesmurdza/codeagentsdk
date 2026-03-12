@@ -31,7 +31,7 @@ describe("OpenCodeProvider", () => {
       expect(cmd).toBe("opencode")
       expect(args).toContain("run")
       expect(args).toContain("--format")
-      expect(args).toContain("json")
+      expect(args).toContain("stream-json")
       expect(args).toContain("-m")
       expect(args).toContain("openai/gpt-4o")
     })

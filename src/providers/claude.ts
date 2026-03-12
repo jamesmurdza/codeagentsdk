@@ -96,7 +96,7 @@ export class ClaudeProvider extends Provider {
     }
   }
 
-  parse(line: string): Event | null {
+  parse(line: string): Event | Event[] | null {
     const json = safeJsonParse<ClaudeEvent>(line)
     if (!json) {
       return null
@@ -117,7 +117,8 @@ export class ClaudeProvider extends Provider {
             return { type: "token", text: block.text }
           }
           if (block.type === "tool_use" && block.name) {
-            return { type: "tool_start", name: block.name, input: block.input }
+            const name = block.name === "Write" ? "write" : block.name
+            return { type: "tool_start", name, input: block.input }
           }
         }
       }
@@ -126,7 +127,8 @@ export class ClaudeProvider extends Provider {
 
     // Tool use event
     if (json.type === "tool_use" && "name" in json) {
-      return { type: "tool_start", name: json.name, input: json.input }
+      const name = json.name === "Write" ? "write" : json.name
+      return { type: "tool_start", name, input: json.input }
     }
 
     // Tool result marks end of tool use

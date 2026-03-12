@@ -81,8 +81,8 @@ export interface IProvider {
   /** Get the command to spawn the provider */
   getCommand(options?: RunOptions): ProviderCommand
 
-  /** Parse a line of output into an event */
-  parse(line: string): Event | null
+  /** Parse a line of output into one or more events */
+  parse(line: string): Event | Event[] | null
 
   /** Run the provider and emit events */
   run(options?: RunOptions): AsyncGenerator<Event, void, unknown>

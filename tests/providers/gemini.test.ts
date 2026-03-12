@@ -29,7 +29,10 @@ describe("GeminiProvider", () => {
       const { cmd, args } = provider.getCommand()
 
       expect(cmd).toBe("gemini")
-      expect(args).toEqual([])
+      expect(args).toContain("-p")
+      expect(args).toContain("--output-format")
+      expect(args).toContain("stream-json")
+      expect(args).toContain("--yolo")
     })
 
     it("should include resume flag with session ID", () => {
