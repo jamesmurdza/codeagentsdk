@@ -84,7 +84,7 @@ async function main() {
   }
 
   if ((provider === "gemini" || provider === "all") && GEMINI_API_KEY) {
-    await testProvider("Gemini", "gemini", GEMINI_API_KEY, "GOOGLE_API_KEY", prompt, title)
+    await testProvider("Gemini", "gemini", GEMINI_API_KEY, "GEMINI_API_KEY", prompt, title)
   }
 
   console.log("\n" + "=".repeat(70))

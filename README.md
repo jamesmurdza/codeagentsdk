@@ -37,17 +37,6 @@ Create a sandbox, create a session, stream events, cleanup. Same pattern for Cla
 | [OpenCode](https://opencode.ai/docs/) | ✅ | `opencode` | Provider-specific env vars (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`) |
 | [Gemini](https://geminicli.com/docs/) | 🚧 | `gemini` | `GOOGLE_API_KEY` env var |
 
-### CLI command per agent
-
-The SDK invokes each provider’s CLI as follows (optional flags in brackets):
-
-| Provider | CLI command |
-|----------|-------------|
-| **Claude** | `claude -p --output-format stream-json --verbose --dangerously-skip-permissions` `[--model <model>] [--resume <sessionId>]` `<prompt>` |
-| **Codex** | `codex exec --json --skip-git-repo-check --yolo` `[--model <model>] [resume <sessionId>]` `<prompt>` |
-| **OpenCode** | `opencode run --format json --variant medium -m <model>` `[-s <sessionId>]` `<prompt>` (run via `bash -lc "… 2>&1"`) |
-| **Gemini** | `gemini -p --output-format stream-json --yolo` `[--model <model>] [--resume <sessionId>]` `<prompt>` |
-
 ## Prerequisites
 
 You'll need a [Daytona](https://daytona.io) API key for sandbox mode. (You can also [run locally](#local-mode-dangerous) without a sandbox.)
@@ -145,26 +134,32 @@ async function main() {
     // Session installs CLI in sandbox and uses env for auth
     const session = await createSession("claude", { sandbox, env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } })
 
-    // Stream events: tokens, tool_start/tool_end, session id, end
+    // Stream events: tokens and tool calls
     for await (const event of session.run("List /tmp then write /tmp/out.txt with 'done'")) {
       switch (event.type) {
-        case "session":
-          console.log("Session:", event.id)
-          break
         case "token":
           process.stdout.write(event.text)
           break
         case "tool_start":
-          if (event.name === "shell" && event.input?.command) {
-            console.log("\n[Running]", event.input.command)
-          } else if (event.name === "write" && event.input?.file_path) {
-            console.log("\n[Writing]", event.input.file_path)
-          } else {
-            console.log("\n[Tool]", event.name)
+          switch (event.name) {
+            case "shell":
+              console.log("\n🛠️ Shell:", event.input?.command ?? "")
+              break
+            case "write":
+              console.log("\n✏️ Write", event.input?.file_path ?? "")
+              break
+            case "read":
+              console.log("\n📖 Read", event.input?.file_path ?? "")
+              break
+            case "glob":
+              console.log("\n🧭 Glob", event.input?.pattern ?? "")
+              break
+            case "grep":
+              console.log("\n🔎 Grep", event.input?.pattern ?? "")
+              break
+            default:
+              console.log("\n🔧 Tool:", event.name)
           }
-          break
-        case "tool_end":
-          if (event.output) console.log("[Output]", event.output.slice(0, 80) + (event.output.length > 80 ? "…" : ""))
           break
         case "end":
           console.log("\nDone.")
@@ -178,6 +173,18 @@ async function main() {
 
 main()
 ```
+
+### CLI command per agent
+
+The SDK invokes each provider’s CLI as follows (optional flags in brackets):
+
+| Provider | CLI command |
+|----------|-------------|
+| **Claude** | `claude -p --output-format stream-json --verbose --dangerously-skip-permissions` `[--model <model>] [--resume <sessionId>]` `<prompt>` |
+| **Codex** | `codex exec --json --skip-git-repo-check --yolo` `[--model <model>] [resume <sessionId>]` `<prompt>` |
+| **OpenCode** | `opencode run --format json --variant medium -m <model>` `[-s <sessionId>]` `<prompt>` (run via `bash -lc "… 2>&1"`) |
+| **Gemini** | `gemini -p --output-format stream-json --yolo` `[--model <model>] [--resume <sessionId>]` `<prompt>` |
+
 
 ## API Reference
 
