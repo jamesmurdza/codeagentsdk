@@ -76,7 +76,7 @@ export abstract class Provider implements IProvider {
 
     // Set environment variables
     if (options.env) {
-      await this.sandboxManager.setEnvVars(options.env)
+      this.sandboxManager.setEnvVars(options.env)
     }
 
     // Build the command
@@ -84,7 +84,7 @@ export abstract class Provider implements IProvider {
 
     // Set command-specific env vars
     if (cmdEnv) {
-      await this.sandboxManager.setEnvVars(cmdEnv)
+      this.sandboxManager.setEnvVars(cmdEnv)
     }
 
     // Build full command string
@@ -94,8 +94,17 @@ export abstract class Provider implements IProvider {
         : arg
     )].join(" ")
 
-    // Execute and stream output
-    for await (const line of this.sandboxManager.executeCommandStream(fullCommand)) {
+    // Execute command and get full output
+    const timeout = options.timeout ?? 120
+    const result = await this.sandboxManager.executeCommand(fullCommand, timeout)
+
+    if (result.exitCode !== 0) {
+      throw new Error(`Command failed with exit code ${result.exitCode}: ${result.output}`)
+    }
+
+    // Parse output line by line
+    const lines = result.output.split("\n").filter(line => line.trim())
+    for (const line of lines) {
       const event = this.parse(line)
       if (!event) continue
 

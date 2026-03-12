@@ -46,6 +46,8 @@ export interface RunOptions {
   env?: Record<string, string>
   /** Automatically install the CLI if not found (default: true) */
   autoInstall?: boolean
+  /** Timeout in seconds for sandbox execution (default: 120) */
+  timeout?: number
 }
 
 /** Options for creating a provider */

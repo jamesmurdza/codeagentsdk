@@ -11,8 +11,8 @@ export type { SandboxConfig } from "../types/index.js"
 export class SandboxManager {
   private daytona: Daytona
   private _sandbox: Sandbox | null = null
-  private sessionId: string | null = null
   private config: SandboxConfig
+  private envVars: Record<string, string> = {}
 
   constructor(config: SandboxConfig = {}) {
     this.config = config
@@ -21,6 +21,9 @@ export class SandboxManager {
       serverUrl: config.serverUrl,
       target: config.target,
     })
+    if (config.env) {
+      this.envVars = { ...config.env }
+    }
   }
 
   /**
@@ -54,9 +57,9 @@ export class SandboxManager {
     try {
       const result = await sandbox.process.executeCommand(
         `npm install -g ${packageName}`,
-        undefined, // cwd
-        undefined, // env
-        120 // timeout in seconds
+        undefined,
+        undefined,
+        120
       )
       return result.exitCode === 0
     } catch {
@@ -89,146 +92,77 @@ export class SandboxManager {
       if (!success) {
         throw new Error(`Failed to install ${name} CLI in sandbox`)
       }
-      console.log(`Successfully installed ${name} CLI`)
+      console.log(`Installed ${name} CLI`)
     }
   }
 
   /**
-   * Create a session for running commands
+   * Execute a command in the sandbox
    */
-  async createSession(sessionId?: string): Promise<string> {
+  async executeCommand(
+    command: string,
+    timeout: number = 60
+  ): Promise<{ exitCode: number; output: string }> {
     const sandbox = await this.create()
-    const id = sessionId ?? `session-${Date.now()}`
 
-    await sandbox.process.createSession(id)
-    this.sessionId = id
+    // Build env string prefix
+    const envPrefix = Object.entries(this.envVars)
+      .map(([k, v]) => `${k}='${v.replace(/'/g, "'\\''")}'`)
+      .join(" ")
 
-    return id
-  }
+    const fullCommand = envPrefix ? `${envPrefix} ${command}` : command
 
-  /**
-   * Get or create the current session
-   */
-  async getSession(): Promise<string> {
-    if (!this.sessionId) {
-      return this.createSession()
-    }
-    return this.sessionId
-  }
-
-  /**
-   * Execute a command in the sandbox session
-   */
-  async executeCommand(command: string): Promise<{ exitCode: number; output: string }> {
-    const sandbox = await this.create()
-    const sessionId = await this.getSession()
-
-    const result = await sandbox.process.executeSessionCommand(sessionId, {
-      command,
-      runAsync: false,
-    })
-
-    // Get the command output
-    const logs = await sandbox.process.getSessionCommandLogs(
-      sessionId,
-      result.cmdId
+    const result = await sandbox.process.executeCommand(
+      fullCommand,
+      undefined,
+      undefined,
+      timeout
     )
 
     return {
       exitCode: result.exitCode ?? 0,
-      output: logs.output ?? logs.stdout ?? "",
+      output: result.result ?? "",
     }
   }
 
   /**
    * Execute a command and stream output line by line
    */
-  async *executeCommandStream(command: string): AsyncGenerator<string, void, unknown> {
-    const sandbox = await this.create()
-    const sessionId = await this.getSession()
+  async *executeCommandStream(
+    command: string,
+    timeout: number = 120
+  ): AsyncGenerator<string, void, unknown> {
+    // For now, execute the full command and yield lines
+    // Future: Use Daytona's streaming API when available
+    const result = await this.executeCommand(command, timeout)
 
-    // Execute command asynchronously
-    const result = await sandbox.process.executeSessionCommand(sessionId, {
-      command,
-      runAsync: true,
-    })
-
-    // Stream logs
-    let lastOutput = ""
-    let completed = false
-
-    while (!completed) {
-      const logs = await sandbox.process.getSessionCommandLogs(
-        sessionId,
-        result.cmdId
-      )
-
-      const currentOutput = logs.output ?? logs.stdout ?? ""
-
-      if (currentOutput.length > lastOutput.length) {
-        const newContent = currentOutput.slice(lastOutput.length)
-        const lines = newContent.split("\n")
-
-        for (const line of lines) {
-          if (line.trim()) {
-            yield line
-          }
-        }
-
-        lastOutput = currentOutput
-      }
-
-      // Check if command completed
-      const cmdInfo = await sandbox.process.getSessionCommand(
-        sessionId,
-        result.cmdId
-      )
-
-      if (cmdInfo.exitCode !== undefined) {
-        completed = true
-      } else {
-        // Small delay before polling again
-        await new Promise((resolve) => setTimeout(resolve, 100))
+    // Split output into lines and yield each
+    const lines = result.output.split("\n")
+    for (const line of lines) {
+      if (line.trim()) {
+        yield line
       }
     }
   }
 
   /**
-   * Set environment variable in the sandbox session
+   * Set environment variable for future commands
    */
-  async setEnv(name: string, value: string): Promise<void> {
-    await this.executeCommand(`export ${name}="${value}"`)
+  setEnv(name: string, value: string): void {
+    this.envVars[name] = value
   }
 
   /**
    * Set multiple environment variables
    */
-  async setEnvVars(vars: Record<string, string>): Promise<void> {
-    for (const [name, value] of Object.entries(vars)) {
-      await this.setEnv(name, value)
-    }
-  }
-
-  /**
-   * Delete the current session
-   */
-  async deleteSession(): Promise<void> {
-    if (this.sessionId && this._sandbox) {
-      try {
-        await this._sandbox.process.deleteSession(this.sessionId)
-      } catch {
-        // Ignore errors when deleting session
-      }
-      this.sessionId = null
-    }
+  setEnvVars(vars: Record<string, string>): void {
+    Object.assign(this.envVars, vars)
   }
 
   /**
    * Cleanup and destroy the sandbox
    */
   async destroy(): Promise<void> {
-    await this.deleteSession()
-
     if (this._sandbox) {
       try {
         await this._sandbox.delete()

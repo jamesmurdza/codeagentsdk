@@ -19,143 +19,121 @@ npm install code-agent-sdk
 
 ## Quick Start
 
-```typescript
-import { createProvider } from "code-agent-sdk"
-
-const provider = createProvider("claude")
-
-// Runs in Daytona sandbox by default (secure)
-for await (const event of provider.run({ prompt: "Hello, world!" })) {
-  switch (event.type) {
-    case "token":
-      process.stdout.write(event.text)
-      break
-    case "end":
-      console.log("\n[Done]")
-      break
-  }
-}
-```
-
-## Execution Modes
-
-### Sandbox Mode (Default - Recommended)
+### Sandbox Mode (Recommended)
 
 By default, all providers run inside a secure [Daytona](https://daytona.io) sandbox. This isolates the CLI execution from your local machine.
 
 ```typescript
-import { createProvider } from "code-agent-sdk"
+import { createSandbox, createProvider } from "code-agent-sdk"
 
-const provider = createProvider("claude")
-
-// Sandbox mode is the default
-const response = await provider.collectText({
-  prompt: "What is 2 + 2?",
-  // mode: "sandbox" is implicit
-})
-```
-
-Configure the sandbox:
-
-```typescript
-const response = await provider.collectText({
-  prompt: "Hello",
-  sandbox: {
-    apiKey: process.env.DAYTONA_API_KEY,  // Or set DAYTONA_API_KEY env var
-    serverUrl: "https://api.daytona.io",
-    autoStopTimeout: 300, // Auto-stop after 5 minutes of inactivity
-    env: {
-      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
-    },
+// 1. Create a sandbox
+const sandbox = createSandbox({
+  apiKey: process.env.DAYTONA_API_KEY,
+  env: {
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
   },
 })
+
+// 2. Create the sandbox instance
+await sandbox.create()
+
+// 3. Create provider with sandbox
+const provider = createProvider("claude", { sandbox })
+
+// 4. Run prompts securely
+for await (const event of provider.run({ prompt: "Hello, world!" })) {
+  if (event.type === "token") {
+    process.stdout.write(event.text)
+  }
+}
+
+// 5. Cleanup when done
+await sandbox.destroy()
 ```
 
-### Local Mode (Opt-in - Use with Caution)
+### Local Mode (Dangerous - Use with Caution)
 
 If you need to run locally (e.g., for development or when you trust the code), explicitly opt-in:
 
 ```typescript
 import { createProvider } from "code-agent-sdk"
 
-const provider = createProvider("claude")
-
-// ⚠️ Runs directly on your local machine
-const response = await provider.collectText({
-  prompt: "Hello",
-  mode: "local",  // Explicitly opt-in to local execution
+// WARNING: Runs directly on your local machine
+const provider = createProvider("claude", {
+  dangerouslyAllowLocalExecution: true,
 })
-```
 
-## Example Usage
-
-### Simple Text Response
-
-```typescript
-import { createProvider } from "code-agent-sdk"
-
-const claude = createProvider("claude")
-const response = await claude.collectText({
-  prompt: "What is 2 + 2?"
+const response = await provider.collectText({
+  prompt: "What is 2 + 2?",
 })
 console.log(response) // "4"
 ```
 
-### Streaming with Callbacks
+## API
 
-```typescript
-import { createProvider } from "code-agent-sdk"
-
-const codex = createProvider("codex")
-
-await codex.runWithCallback((event) => {
-  if (event.type === "token") {
-    process.stdout.write(event.text)
-  }
-}, { prompt: "Explain recursion briefly" })
-```
-
-### Using the Sandbox Directly
+### Creating a Sandbox
 
 ```typescript
 import { createSandbox } from "code-agent-sdk"
 
 const sandbox = createSandbox({
-  apiKey: process.env.DAYTONA_API_KEY,
+  apiKey: process.env.DAYTONA_API_KEY,      // Daytona API key
+  serverUrl: "https://api.daytona.io",       // Optional: Daytona server URL
+  autoStopTimeout: 300,                       // Optional: Auto-stop after 5 min
+  env: {
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+  },
 })
 
-// Install a CLI
-await sandbox.ensureProvider("claude")
-
-// Execute commands
-const result = await sandbox.executeCommand("claude --version")
-console.log(result.output)
-
-// Stream command output
-for await (const line of sandbox.executeCommandStream("claude -p 'Hello'")) {
-  console.log(line)
-}
-
-// Cleanup when done
-await sandbox.destroy()
+await sandbox.create()
 ```
 
-### Session Persistence
+### Creating a Provider
 
 ```typescript
-import { createProvider } from "code-agent-sdk"
+// With sandbox (recommended)
+const provider = createProvider("claude", { sandbox })
 
-const provider = createProvider("claude")
-
-// First interaction - session is saved automatically
-await provider.collectText({ prompt: "Remember: my name is Alice" })
-
-// Second interaction - resumes the same session
-const response = await provider.collectText({ prompt: "What's my name?" })
-console.log(response) // Should remember "Alice"
+// Or with dangerous local execution
+const provider = createProvider("claude", {
+  dangerouslyAllowLocalExecution: true,
+})
 ```
 
-## API Reference
+### Running Prompts
+
+```typescript
+// Streaming with async generator
+for await (const event of provider.run({ prompt: "Hello" })) {
+  switch (event.type) {
+    case "session":
+      console.log("Session:", event.id)
+      break
+    case "token":
+      process.stdout.write(event.text)
+      break
+    case "tool_start":
+      console.log("Using tool:", event.name)
+      break
+    case "end":
+      console.log("\n[Done]")
+      break
+  }
+}
+
+// Callback style
+await provider.runWithCallback((event) => {
+  if (event.type === "token") {
+    process.stdout.write(event.text)
+  }
+}, { prompt: "Hello" })
+
+// Collect full text response
+const text = await provider.collectText({ prompt: "Hello" })
+
+// Collect all events
+const events = await provider.collectEvents({ prompt: "Hello" })
+```
 
 ### Run Options
 
@@ -163,21 +141,12 @@ console.log(response) // Should remember "Alice"
 interface RunOptions {
   prompt?: string              // The prompt to send
   sessionId?: string           // Session ID to resume
-  persistSession?: boolean     // Save session to file (default: true)
-  sessionFile?: string         // Custom session file path
+  persistSession?: boolean     // Save session to file (default: true, local only)
+  sessionFile?: string         // Custom session file path (local only)
   cwd?: string                 // Working directory
-  env?: Record<string, string> // Environment variables
-  autoInstall?: boolean        // Auto-install CLI if missing (default: true in sandbox, false in local)
-  mode?: "sandbox" | "local"   // Execution mode (default: "sandbox")
-  sandbox?: SandboxConfig      // Sandbox configuration
-}
-
-interface SandboxConfig {
-  apiKey?: string              // Daytona API key (or DAYTONA_API_KEY env var)
-  serverUrl?: string           // Daytona server URL
-  target?: string              // Target region
-  autoStopTimeout?: number     // Auto-stop timeout in seconds
-  env?: Record<string, string> // Environment variables for the sandbox
+  env?: Record<string, string> // Additional environment variables
+  autoInstall?: boolean        // Auto-install CLI if missing (default: true)
+  timeout?: number             // Timeout in seconds (default: 120)
 }
 ```
 
@@ -193,23 +162,31 @@ type Event =
   | { type: "end" }                      // Turn complete
 ```
 
-### Provider Methods
+### Using the Sandbox Directly
 
 ```typescript
-// Stream events
-for await (const event of provider.run(options)) { }
+import { createSandbox } from "code-agent-sdk"
 
-// Callback style
-await provider.runWithCallback(callback, options)
+const sandbox = createSandbox({
+  apiKey: process.env.DAYTONA_API_KEY,
+})
 
-// Collect all text
-const text = await provider.collectText(options)
+await sandbox.create()
 
-// Collect all events
-const events = await provider.collectEvents(options)
+// Install a CLI
+await sandbox.ensureProvider("claude")
 
-// Cleanup sandbox resources
-await provider.destroySandbox()
+// Set environment variables
+sandbox.setEnv("ANTHROPIC_API_KEY", "sk-...")
+sandbox.setEnvVars({ FOO: "bar", BAZ: "qux" })
+
+// Execute commands
+const result = await sandbox.executeCommand("claude --version")
+console.log(result.output)
+console.log(result.exitCode)
+
+// Cleanup when done
+await sandbox.destroy()
 ```
 
 ## Environment Variables
@@ -237,9 +214,8 @@ npm run build
 # Run tests
 npm test
 
-# Run integration tests (local mode)
-npx tsx scripts/test-claude.ts
-npx tsx scripts/test-codex.ts
+# Run sandbox integration test
+npx tsx scripts/test-sandbox.ts
 ```
 
 ## Security
