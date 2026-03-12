@@ -8,7 +8,7 @@
  */
 import * as readline from "node:readline"
 import { Daytona } from "@daytonaio/sdk"
-import { createSession, getProviderNames, isValidProvider, type ProviderName } from "../src/index.js"
+import { createBackgroundSession, getProviderNames, isValidProvider, type ProviderName } from "../src/index.js"
 
 // Provider -> API key environment variable mapping
 const PROVIDER_API_KEYS: Record<ProviderName, { envVar: string; name: string }> = {
@@ -102,7 +102,14 @@ async function main() {
   console.log()
 
   const env = { [providerKeyConfig.envVar]: PROVIDER_API_KEY! }
-  const session = await createSession(selectedProvider, { sandbox, env, model: selectedModel, timeout: 120 })
+  const bgSession = await createBackgroundSession(selectedProvider, {
+    sandbox,
+    env,
+    model: selectedModel,
+    timeout: 120,
+    // Single log file reused across prompts; each prompt advances its cursor.
+    outputFile: "/tmp/coding-agent-repl.jsonl",
+  })
 
   console.log(`${selectedProvider.charAt(0).toUpperCase() + selectedProvider.slice(1)} ready (polling mode).`)
   console.log()
@@ -136,7 +143,7 @@ async function main() {
       }
 
       if (trimmed === "/clear") {
-        session.sessionId = null
+        bgSession.provider.sessionId = null
         console.log("Session cleared.\n")
         prompt()
         return
@@ -150,18 +157,14 @@ async function main() {
 
         const providerLabel = selectedProvider.charAt(0).toUpperCase() + selectedProvider.slice(1)
 
-        // Start sandboxed background run writing JSONL to a file
-        const outputFile = `/tmp/coding-agent-${Date.now()}-${Math.random().toString(36).slice(2)}.jsonl`
-        const { cursor: initialCursor } = await session.startSandboxBackground({
-          prompt: trimmed,
-          outputFile,
-        })
+        // Start sandboxed background run via background session
+        const { cursor: initialCursor } = await bgSession.start(trimmed)
 
         let cursor: string | null = initialCursor
         let done = false
 
         while (!done) {
-          const res = await session.pollSandboxBackground(outputFile, cursor)
+          const res = await bgSession.poll(cursor)
 
           for (const event of res.events) {
             // Session events are captured internally; don't print them in REPL output.

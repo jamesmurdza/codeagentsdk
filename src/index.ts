@@ -69,8 +69,14 @@ export {
   isValidProvider,
 } from "./factory.js"
 
-// Session (provider with run defaults; recommended entry point)
-export { createSession, type SessionOptions } from "./session.js"
+// Session (provider with run defaults; recommended entry points)
+export {
+  createSession,
+  type SessionOptions,
+  createBackgroundSession,
+  type BackgroundSessionOptions,
+  type BackgroundSession,
+} from "./session.js"
 
 // Utilities
 export {

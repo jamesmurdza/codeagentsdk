@@ -337,35 +337,31 @@ You can also start a **background** run inside a Daytona sandbox that writes the
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
-import { createSession } from "coding-agents-sdk"
+import { createBackgroundSession } from "coding-agents-sdk"
 
-// 1. Create a sandbox and session
+// 1. Create a sandbox and background session
 const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY! })
 const sandbox = await daytona.create({
   envVars: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY! },
 })
 
-const session = await createSession("claude", {
+const bg = await createBackgroundSession("claude", {
   sandbox,
   env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY! },
   model: "sonnet",
+  outputFile: "/tmp/agent-stdout.jsonl", // append-only JSONL log in the sandbox
 })
 
 // 2. Start a background run inside the sandbox (no PTY, stdout -> file)
-const { executionId, pid, outputFile, cursor: initialCursor } =
-  await session.startSandboxBackground({
-    prompt: "Do a long-running refactor...",
-    outputFile: "/tmp/agent-stdout.jsonl", // append-only JSONL log in the sandbox
-    // any other RunOptions: model, env, timeout, etc.
-  })
+const { executionId, pid, cursor: initialCursor } = await bg.start("Do a long-running refactor...")
 
-console.log("Started sandboxed background agent", { executionId, pid, outputFile })
+console.log("Started sandboxed background agent", { executionId, pid, outputFile: bg.outputFile })
 
 // 3. Poll for new output using an opaque cursor
 let cursor: string | null = initialCursor
 
 async function poll() {
-  const res = await session.pollSandboxBackground(outputFile, cursor)
+  const res = await bg.poll(cursor)
 
   // Handle events exactly like session.run(), but batched since last cursor
   for (const event of res.events) {
