@@ -225,7 +225,7 @@ await gemini.run({ prompt: "Hello", model: "gemini-2.0-flash" })
 await gemini.run({ prompt: "Hello", model: "gemini-1.5-pro" })
 ```
 
-### OpenCode Models (OpenAI)
+### OpenCode Models
 
 ```typescript
 const opencode = createProvider("opencode", { sandbox })
