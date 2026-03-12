@@ -168,11 +168,6 @@ async function main() {
       }
 
       try {
-        const beforeSession = provider.sessionId
-        if (beforeSession) {
-          console.log(`\x1b[90m[Session: ${beforeSession}]\x1b[0m`)
-        }
-
         // Show thinking indicator
         process.stdout.write("\x1b[90mThinking...\x1b[0m")
         let firstToken = true
@@ -237,11 +232,6 @@ async function main() {
         }
 
         console.log("\n")
-
-        const afterSession = provider.sessionId
-        if (afterSession && afterSession !== beforeSession) {
-          console.log(`\x1b[90m[Session now: ${afterSession}]\x1b[0m\n`)
-        }
       } catch (error) {
         // Clear thinking indicator on error
         process.stdout.write("\r\x1b[K")
