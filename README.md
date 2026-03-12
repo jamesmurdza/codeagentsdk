@@ -382,7 +382,7 @@ DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npx tsx scripts/repl.ts
 ### AI Coding Agents
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) - Anthropic's agentic coding tool ([GitHub](https://github.com/anthropics/claude-code))
 - [Codex CLI](https://developers.openai.com/codex/cli) - OpenAI's lightweight coding agent ([GitHub](https://github.com/openai/codex))
-- [Gemini CLI](https://github.com/google-gemini/gemini-cli) - Google's open-source AI agent ([Docs](https://geminicli.com/docs/))
+- [Gemini CLI](https://geminicli.com/docs/) - Google's open-source AI agent ([GitHub](https://github.com/google-gemini/gemini-cli))
 - [OpenCode](https://opencode.ai/docs/) - Open source AI coding agent ([GitHub](https://github.com/opencode-ai/opencode))
 
 ## License
