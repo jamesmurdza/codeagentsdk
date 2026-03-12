@@ -45,8 +45,16 @@ The SDK invokes each provider’s CLI as follows (optional flags in brackets):
 |----------|-------------|
 | **Claude** | `claude -p --output-format stream-json --verbose --dangerously-skip-permissions` `[--model <model>] [--resume <sessionId>]` `<prompt>` |
 | **Codex** | `codex exec --json --skip-git-repo-check --yolo` `[--model <model>] [resume <sessionId>]` `<prompt>` |
-| **Gemini** | `gemini -p --output-format stream-json --yolo` `[--model <model>] [--resume <sessionId>]` `<prompt>` |
 | **OpenCode** | `opencode run --format json --variant medium -m <model>` `[-s <sessionId>]` `<prompt>` (run via `bash -lc "… 2>&1"`) |
+| **Gemini** | `gemini -p --output-format stream-json --yolo` `[--model <model>] [--resume <sessionId>]` `<prompt>` |
+
+## Prerequisites
+
+You'll need a [Daytona](https://daytona.io) API key for sandbox mode. (You can also [run locally](#local-mode-dangerous) without a sandbox.)
+
+```bash
+export DAYTONA_API_KEY=dtn_your_api_key
+```
 
 ## Installation
 
@@ -60,16 +68,6 @@ For sandboxed execution, install the Daytona SDK:
 ```bash
 npm install @daytonaio/sdk
 ```
-
-## Prerequisites
-
-You'll need a [Daytona](https://daytona.io) API key for sandbox mode (recommended):
-
-```bash
-export DAYTONA_API_KEY=dtn_your_api_key
-```
-
-If you prefer to run locally without a sandbox, see [Local Mode](#local-mode-dangerous) below.
 
 ## Quick Start
 
@@ -271,42 +269,42 @@ See [Claude Code model configuration](https://code.claude.com/docs/en/model-conf
 ### Codex Models
 
 ```typescript
-const codex = await createSession("codex", {
+const codexSession = await createSession("codex", {
   sandbox,
   env: { OPENAI_API_KEY: process.env.OPENAI_API_KEY },
   model: "gpt-4o", // or "o1", "o3"
 })
-for await (const event of codex.run("Hello")) { /* ... */ }
+for await (const event of codexSession.run("Hello")) { /* ... */ }
 ```
 
 See [Codex CLI models](https://developers.openai.com/codex/models) for all available models.
-
-### Gemini Models
-
-```typescript
-const gemini = await createSession("gemini", {
-  sandbox,
-  env: { GOOGLE_API_KEY: process.env.GOOGLE_API_KEY },
-  model: "gemini-2.0-flash", // or "gemini-1.5-pro"
-})
-for await (const event of gemini.run("Hello")) { /* ... */ }
-```
-
-See [Gemini CLI model selection](https://geminicli.com/docs/cli/model) for all available models.
 
 ### OpenCode Models
 
 ```typescript
 // Format: "provider/model" (default is openai/gpt-4o)
-const opencode = await createSession("opencode", {
+const opencodeSession = await createSession("opencode", {
   sandbox,
   env: { OPENAI_API_KEY: process.env.OPENAI_API_KEY },
   model: "openai/gpt-4o", // or "openai/o1", "anthropic/claude-sonnet", etc.
 })
-for await (const event of opencode.run("Hello")) { /* ... */ }
+for await (const event of opencodeSession.run("Hello")) { /* ... */ }
 ```
 
 See [OpenCode models](https://opencode.ai/docs/models/) for all available models and providers.
+
+### Gemini Models
+
+```typescript
+const geminiSession = await createSession("gemini", {
+  sandbox,
+  env: { GOOGLE_API_KEY: process.env.GOOGLE_API_KEY },
+  model: "gemini-2.0-flash", // or "gemini-1.5-pro"
+})
+for await (const event of geminiSession.run("Hello")) { /* ... */ }
+```
+
+See [Gemini CLI model selection](https://geminicli.com/docs/cli/model) for all available models.
 
 ## Local Mode (Dangerous)
 
@@ -337,11 +335,11 @@ DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npx tsx scripts/repl.ts
 # Using Codex
 DAYTONA_API_KEY=... OPENAI_API_KEY=... npx tsx scripts/repl.ts --provider codex
 
-# Using Gemini
-DAYTONA_API_KEY=... GEMINI_API_KEY=... npx tsx scripts/repl.ts --provider gemini
-
 # Using OpenCode
 DAYTONA_API_KEY=... OPENAI_API_KEY=... npx tsx scripts/repl.ts --provider opencode
+
+# Using Gemini
+DAYTONA_API_KEY=... GEMINI_API_KEY=... npx tsx scripts/repl.ts --provider gemini
 ```
 
 ### REPL Options
@@ -353,7 +351,7 @@ Options:
   -p, --provider <name>  Provider to use (default: claude)
   -h, --help             Show help message
 
-Supported providers: claude, codex, gemini, opencode
+Supported providers: claude, codex, opencode, gemini
 ```
 
 ### Example Session
