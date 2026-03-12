@@ -9,12 +9,26 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY!
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!
 
-const PROMPT =
+const PROMPT_WRITE =
   "Write a file called /tmp/test.txt with the content 'Hello World'. Use the write/file tool only—do not run any shell commands."
 
-async function testProvider(name: string, providerType: "claude" | "codex" | "opencode" | "gemini", apiKey: string, envKey: string) {
+const PROMPT_LS_THEN_WRITE = [
+  "Do exactly two steps, in order:",
+  "1. Run the shell command 'ls -la /tmp' and tell me what it outputs.",
+  "2. Then write a file at /tmp/hello.txt with the exact content 'Hello from SDK test' using the write tool.",
+  "Confirm both steps when done.",
+].join(" ")
+
+async function testProvider(
+  name: string,
+  providerType: "claude" | "codex" | "opencode" | "gemini",
+  apiKey: string,
+  envKey: string,
+  prompt: string,
+  title: string
+) {
   console.log("\n" + "=".repeat(70))
-  console.log(`  ${name.toUpperCase()} - SDK Events for Write File`)
+  console.log(`  ${name.toUpperCase()} - ${title}`)
   console.log("=".repeat(70))
 
   const sandbox = createSandbox({
@@ -39,7 +53,7 @@ async function testProvider(name: string, providerType: "claude" | "codex" | "op
     console.log("-".repeat(50))
 
     for await (const event of provider.run({
-      prompt: PROMPT,
+      prompt,
       autoInstall: providerType !== "codex",
     })) {
       // Print each event as JSON for clear inspection
@@ -55,21 +69,24 @@ async function testProvider(name: string, providerType: "claude" | "codex" | "op
 
 async function main() {
   const provider = process.argv[2] || "all"
+  const scenario = process.argv[3] || "write"
+  const prompt = scenario === "ls-write" ? PROMPT_LS_THEN_WRITE : PROMPT_WRITE
+  const title = scenario === "ls-write" ? "LS Then Write" : "Write File"
 
   if (provider === "claude" || provider === "all") {
-    await testProvider("Claude", "claude", ANTHROPIC_API_KEY, "ANTHROPIC_API_KEY")
+    await testProvider("Claude", "claude", ANTHROPIC_API_KEY, "ANTHROPIC_API_KEY", prompt, title)
   }
 
   if (provider === "codex" || provider === "all") {
-    await testProvider("Codex", "codex", OPENAI_API_KEY, "OPENAI_API_KEY")
+    await testProvider("Codex", "codex", OPENAI_API_KEY, "OPENAI_API_KEY", prompt, title)
   }
 
   if (provider === "opencode" || provider === "all") {
-    await testProvider("OpenCode", "opencode", OPENAI_API_KEY, "OPENAI_API_KEY")
+    await testProvider("OpenCode", "opencode", OPENAI_API_KEY, "OPENAI_API_KEY", prompt, title)
   }
 
   if ((provider === "gemini" || provider === "all") && GEMINI_API_KEY) {
-    await testProvider("Gemini", "gemini", GEMINI_API_KEY, "GOOGLE_API_KEY")
+    await testProvider("Gemini", "gemini", GEMINI_API_KEY, "GOOGLE_API_KEY", prompt, title)
   }
 
   console.log("\n" + "=".repeat(70))
