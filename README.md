@@ -8,9 +8,9 @@ import { createSession } from "code-agent-sdk"
 
 const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
 const sandbox = await daytona.create({ envVars: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } })
-const claude = await createSession("claude", { sandbox, env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } })
+const claudeSession = await createSession("claude", { sandbox, env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } })
 
-for await (const event of claude.run("Hello!")) {
+for await (const event of claudeSession.run("Hello!")) {
   if (event.type === "token") process.stdout.write(event.text)
   if (event.type === "end") break
 }
@@ -88,7 +88,7 @@ const sandbox = await daytona.create({
 ### 2. Create a session
 
 ```typescript
-const claude = await createSession("claude", {
+const claudeSession = await createSession("claude", {
   sandbox,
   env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY },
   model: "sonnet",
@@ -99,7 +99,7 @@ const claude = await createSession("claude", {
 ### 3. Stream responses
 
 ```typescript
-for await (const event of claude.run("Hello!")) {
+for await (const event of claudeSession.run("Hello!")) {
   if (event.type === "token") process.stdout.write(event.text)
   if (event.type === "tool_start") console.log(`\n[Tool: ${event.name}]`)
   if (event.type === "end") break
@@ -313,15 +313,15 @@ Each provider supports specifying a model via the `model` option. With sessions,
 ```typescript
 const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
 const sandbox = await daytona.create({ envVars: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } })
-const claude = await createSession("claude", { sandbox, env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } })
+const claudeSession = await createSession("claude", { sandbox, env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } })
 
 // Use model alias (recommended)
-await claude.run("Hello", { model: "sonnet" })
-await claude.run("Hello", { model: "opus" })
-await claude.run("Hello", { model: "haiku" })
+await claudeSession.run("Hello", { model: "sonnet" })
+await claudeSession.run("Hello", { model: "opus" })
+await claudeSession.run("Hello", { model: "haiku" })
 
 // Or use full model name
-await claude.run("Hello", { model: "claude-sonnet-4-5-20250929" })
+await claudeSession.run("Hello", { model: "claude-sonnet-4-5-20250929" })
 ```
 
 See [Claude Code model configuration](https://code.claude.com/docs/en/model-config) for all available models.
