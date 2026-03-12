@@ -151,6 +151,9 @@ export class OpenCodeProvider extends Provider {
 
     // Step start - session initialization
     if (json.type === "step_start") {
+      // OpenCode can emit multiple step_start lines for the same session; only emit once.
+      if (this.sessionId === json.sessionID) return null
+      this.sessionId = json.sessionID
       return { type: "session", id: json.sessionID }
     }
 
@@ -182,6 +185,8 @@ export class OpenCodeProvider extends Provider {
 
     // Step finish - completion
     if (json.type === "step_finish") {
+      // Ignore intermediate tool-calls steps; only end on final stop.
+      if (json.part?.reason && json.part.reason !== "stop") return null
       return { type: "end" }
     }
 
