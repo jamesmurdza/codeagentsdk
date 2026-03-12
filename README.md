@@ -164,22 +164,6 @@ main()
 
 ## API Reference
 
-### createProvider(name, options)
-
-Creates a low-level provider instance (advanced). For most use-cases, prefer `createSession()` so you can set defaults once.
-
-```typescript
-// With sandbox (recommended): pass a Daytona Sandbox from daytona.create()
-const provider = createProvider("claude", { sandbox, env: { ANTHROPIC_API_KEY: "..." } })
-
-// With dangerous local execution (use with caution!)
-const provider = createProvider("claude", {
-  dangerouslyAllowLocalExecution: true
-})
-```
-
-**Supported providers:** `"claude"`, `"codex"`, `"gemini"`, `"opencode"`
-
 ### createSession(name, options)
 
 Creates a session with defaults (model, timeout, env, etc.) and exposes `session.run(prompt)`. Pass `env` with your provider API key(s). **Async:** installs the CLI in the sandbox and runs Codex login if needed, so the returned session is ready to use. Pass `skipInstall: true` to skip install.
@@ -256,7 +240,6 @@ The SDK emits typed events: when you narrow on `event.name`, `event.input` is ty
 
 ```typescript
 import {
-  createProvider,
   type WriteToolInput,
   type ShellToolInput,
 } from "code-agent-sdk"
@@ -453,7 +436,7 @@ Goodbye!
 
 ## How It Works
 
-1. **Sandbox**: You create a Daytona sandbox with `@daytonaio/sdk` and pass it directly to createProvider/createSession
+1. **Sandbox**: You create a Daytona sandbox with `@daytonaio/sdk` and pass it directly to createSession
 2. **CLI installation**: The provider CLI is installed when you create the session (unless `skipInstall: true`). On every `run()`, env is set and for Codex `codex login --with-api-key` runs
 3. **PTY Streaming**: Commands run via PTY for real-time output streaming
 4. **Event Parsing**: JSON output is parsed into typed events
