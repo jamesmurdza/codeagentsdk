@@ -24,16 +24,12 @@ export abstract class Provider implements IProvider {
   /** Whether local execution is allowed */
   protected allowLocalExecution: boolean = false
 
-  /** CLI install: one promise so install-at-creation and first run() share the same work */
-  private _installPromise: Promise<void> | null = null
-
-  /** Resolves when initial setup (install + env + Codex login) has completed. Awaited by REPL before "ready". */
+  /** Resolves when initial setup (install + env + Codex login) has completed. */
   private _readyPromise: Promise<void> | null = null
 
-  /** Env passed at creation so Codex login can run even when run() is called without env */
+  /** Env passed at creation; used for setup and when run() omits env */
   private _creationEnv: Record<string, string> | undefined
 
-  /** Promise that resolves when the provider is ready (CLI installed, env set, Codex logged in if applicable). */
   get ready(): Promise<void> {
     return this._readyPromise ?? Promise.resolve()
   }
@@ -44,9 +40,7 @@ export abstract class Provider implements IProvider {
       this.sandboxManager = adaptSandbox(options.sandbox, { env: options.env })
       if (!options.skipInstall) {
         this._readyPromise = new Promise<void>((resolve, reject) => {
-          queueMicrotask(() => {
-            this.ensureSetup({}).then(resolve).catch(reject)
-          })
+          queueMicrotask(() => this._doSetup().then(resolve).catch(reject))
         })
       }
     } else if (options.dangerouslyAllowLocalExecution) {
@@ -89,45 +83,34 @@ export abstract class Provider implements IProvider {
     }
   }
 
-  /**
-   * Install the provider CLI in the sandbox once. Starts in constructor (unless skipInstall: true).
-   * run() awaits this if still in progress.
-   */
-  private async ensureInstalled(options: RunOptions = {}): Promise<void> {
-    if (!this.sandboxManager) return
-    if (options.skipInstall) return
-    if (!this._installPromise) {
-      this._installPromise = this.sandboxManager.ensureProvider(this.name).then(() => {})
-    }
-    await this._installPromise
+  private async _codexLoginIfNeeded(env: Record<string, string> | undefined): Promise<void> {
+    if (
+      this.name !== "codex" ||
+      !env?.OPENAI_API_KEY ||
+      !this.sandboxManager?.executeCommand
+    )
+      return
+    const safeKey = env.OPENAI_API_KEY.replace(/'/g, "'\\''")
+    await this.sandboxManager.executeCommand(
+      `echo '${safeKey}' | codex login --with-api-key 2>&1`,
+      30
+    )
   }
 
-  /**
-   * Session-start setup: set env and Codex login (every time). Uses ensureInstalled for one-time CLI install.
-   */
-  private async ensureSetup(options: RunOptions): Promise<void> {
+  /** One-time setup: install CLI, set env, Codex login. Run in microtask so subclass name is set. */
+  private async _doSetup(): Promise<void> {
     if (!this.sandboxManager) return
+    await this.sandboxManager.ensureProvider(this.name)
+    if (this._creationEnv) this.sandboxManager.setEnvVars(this._creationEnv)
+    await this._codexLoginIfNeeded(this._creationEnv)
+  }
 
-    await this.ensureInstalled(options)
-
+  /** Per-run: set env and Codex login. */
+  private async _applyRunEnv(options: RunOptions): Promise<void> {
+    if (!this.sandboxManager) return
     const env = options.env ?? this._creationEnv
-    if (env) {
-      this.sandboxManager.setEnvVars(env)
-    }
-
-    // Codex login runs at the start of every run when we have OPENAI_API_KEY
-    if (
-      this.name === "codex" &&
-      env?.OPENAI_API_KEY &&
-      this.sandboxManager.executeCommand
-    ) {
-      const key = env.OPENAI_API_KEY
-      const safeKey = key.replace(/'/g, "'\\''")
-      await this.sandboxManager.executeCommand(
-        `echo '${safeKey}' | codex login --with-api-key 2>&1`,
-        30
-      )
-    }
+    if (env) this.sandboxManager.setEnvVars(env)
+    await this._codexLoginIfNeeded(env)
   }
 
   /**
@@ -137,8 +120,8 @@ export abstract class Provider implements IProvider {
     if (!this.sandboxManager) {
       throw new Error("Sandbox manager not configured")
     }
-
-    await this.ensureSetup(options)
+    await (this._readyPromise ?? Promise.resolve())
+    await this._applyRunEnv(options)
 
     // Build the command
     const { cmd, args, env: cmdEnv } = this.getCommand(options)
