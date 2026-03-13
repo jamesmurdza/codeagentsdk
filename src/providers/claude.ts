@@ -98,6 +98,11 @@ export class ClaudeProvider extends Provider {
     // Skip permission prompts when already running in a sandbox
     args.push("--dangerously-skip-permissions")
 
+    // Apply system prompt via native CLI flag when provided.
+    if (options?.systemPrompt) {
+      args.push("--system-prompt", options.systemPrompt)
+    }
+
     // Add model if specified (e.g., "sonnet", "opus", "claude-sonnet-4-5-20250929")
     if (options?.model) {
       args.push("--model", options.model)

@@ -42,6 +42,9 @@ export abstract class Provider implements IProvider {
   /** Defaults merged into every run (model, timeout, sessionId, env). Set by createSession. */
   private _runDefaults: RunDefaults = {}
 
+  /** Tracks whether we've already applied a synthetic system prompt for this session. */
+  private _systemPromptApplied = false
+
   get ready(): Promise<void> {
     return this._readyPromise ?? Promise.resolve()
   }
@@ -92,6 +95,20 @@ export abstract class Provider implements IProvider {
       typeof promptOrOptions === "string"
         ? { ...this._runDefaults, prompt: promptOrOptions }
         : { ...this._runDefaults, ...promptOrOptions }
+
+    // Apply synthetic system prompt once per session for providers without native support
+    // by prepending it to the first user prompt.
+    if (options.systemPrompt && !this._systemPromptApplied) {
+      const supportsNativeSystemPrompt = this.name === "claude"
+      if (!supportsNativeSystemPrompt) {
+        const basePrompt = options.prompt ?? ""
+        options.prompt = basePrompt
+          ? `${options.systemPrompt}\n\n${basePrompt}`
+          : options.systemPrompt
+      }
+      this._systemPromptApplied = true
+    }
+
     if (this.sandboxManager) {
       yield* this.runSandbox(options)
     } else if (this.allowLocalExecution) {

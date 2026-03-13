@@ -36,6 +36,13 @@ export interface AdaptSandboxOptions {
 export interface RunOptions {
   /** The prompt to send to the provider */
   prompt?: string
+  /**
+   * Optional system prompt / high-level instructions.
+   * When set via createSession, providers that support system prompts will use
+   * their native mechanism; others will have this string prepended to the first
+   * user prompt in the session.
+   */
+  systemPrompt?: string
   /** Optional session ID to resume */
   sessionId?: string
   /** Whether to persist session ID to file (only for local mode) */

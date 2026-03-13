@@ -31,6 +31,8 @@ export interface SessionOptions extends ProviderOptions {
   model?: string
   sessionId?: string
   timeout?: number
+  /** Optional system prompt applied once per session. */
+  systemPrompt?: string
   skipInstall?: boolean
   env?: Record<string, string>
 }
@@ -79,8 +81,8 @@ export interface BackgroundSession {
  * Returns the provider; call session.run(prompt) with just the prompt string.
  */
 export async function createSession(name: ProviderName, options: SessionOptions): Promise<Provider> {
-  const { model, sessionId, timeout, skipInstall, env, ...providerOptions } = options
-  const runDefaults: RunDefaults = { model, sessionId, timeout, skipInstall, env }
+  const { model, sessionId, timeout, systemPrompt, skipInstall, env, ...providerOptions } = options
+  const runDefaults: RunDefaults = { model, sessionId, timeout, systemPrompt, skipInstall, env }
   const provider = createProvider(name, { ...providerOptions, skipInstall, env, runDefaults })
   await provider.ready
   return provider
@@ -131,6 +133,11 @@ async function createBackgroundSessionWithId(
     provider,
     async start(prompt: string, extraOptions?: Omit<RunOptions, "prompt">) {
       return provider.startSandboxBackgroundTurn(sessionDir, {
+        // Re-apply core run defaults (model, timeout, env, systemPrompt) for each turn.
+        model: options.model,
+        timeout: options.timeout,
+        env: options.env,
+        systemPrompt: options.systemPrompt,
         ...(extraOptions ?? {}),
         prompt,
       })
