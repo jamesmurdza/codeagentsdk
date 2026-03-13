@@ -114,7 +114,12 @@ async function main() {
   console.log("Sandbox created!")
   console.log()
 
-  const session = await createSession(selectedProvider, { sandbox, model: selectedModel, timeout: 120 })
+  const session = await createSession(selectedProvider, {
+    sandbox,
+    model: selectedModel,
+    timeout: 120,
+    systemPrompt: "You are a helpful coding assistant who responds in clear, concise French.",
+  })
 
   console.log(`${selectedProvider.charAt(0).toUpperCase() + selectedProvider.slice(1)} ready.`)
   console.log()

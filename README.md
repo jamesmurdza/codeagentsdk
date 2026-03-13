@@ -88,6 +88,7 @@ const session = await createSession("claude", {
   sandbox,
   model: "sonnet",
   timeout: 120,
+  systemPrompt: "You are a helpful coding assistant.",
 })
 ```
 

@@ -87,17 +87,11 @@ export abstract class Provider implements IProvider {
   abstract parse(line: string): Event | Event[] | null
 
   /**
-   * Run the provider and yield events. Pass a prompt string or full RunOptions.
-   * When created via createSession, runDefaults are merged in (e.g. model, timeout).
+   * Apply a synthetic system prompt for providers without native support by
+   * prepending it to the first user prompt in the session. Claude uses its
+   * native CLI flag instead, so we leave the prompt unchanged there.
    */
-  async *run(promptOrOptions: string | RunOptions = {}): AsyncGenerator<Event, void, unknown> {
-    const options: RunOptions =
-      typeof promptOrOptions === "string"
-        ? { ...this._runDefaults, prompt: promptOrOptions }
-        : { ...this._runDefaults, ...promptOrOptions }
-
-    // Apply synthetic system prompt once per session for providers without native support
-    // by prepending it to the first user prompt.
+  private _applySystemPrompt(options: RunOptions): RunOptions {
     if (options.systemPrompt && !this._systemPromptApplied) {
       const supportsNativeSystemPrompt = this.name === "claude"
       if (!supportsNativeSystemPrompt) {
@@ -108,6 +102,20 @@ export abstract class Provider implements IProvider {
       }
       this._systemPromptApplied = true
     }
+    return options
+  }
+
+  /**
+   * Run the provider and yield events. Pass a prompt string or full RunOptions.
+   * When created via createSession, runDefaults are merged in (e.g. model, timeout).
+   */
+  async *run(promptOrOptions: string | RunOptions = {}): AsyncGenerator<Event, void, unknown> {
+    let options: RunOptions =
+      typeof promptOrOptions === "string"
+        ? { ...this._runDefaults, prompt: promptOrOptions }
+        : { ...this._runDefaults, ...promptOrOptions }
+
+    options = this._applySystemPrompt(options)
 
     if (this.sandboxManager) {
       yield* this.runSandbox(options)
@@ -406,9 +414,10 @@ export abstract class Provider implements IProvider {
     }
 
     await (this._readyPromise ?? Promise.resolve())
-    await this._applyRunEnv(options)
+    const optsWithSystem = this._applySystemPrompt(options)
+    await this._applyRunEnv(optsWithSystem)
 
-    const { cmd, args, env: cmdEnv } = this.getCommand(options)
+    const { cmd, args, env: cmdEnv } = this.getCommand(optsWithSystem)
 
     if (cmdEnv) {
       this.sandboxManager.setEnvVars(cmdEnv)

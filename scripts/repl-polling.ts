@@ -105,6 +105,7 @@ async function main() {
     sandbox,
     model: selectedModel,
     timeout: 120,
+    systemPrompt: "You are a helpful coding assistant who responds in clear, concise French.",
   })
 
   console.log(`${selectedProvider.charAt(0).toUpperCase() + selectedProvider.slice(1)} ready (polling mode). Session ID: ${bgSession.id}`)
