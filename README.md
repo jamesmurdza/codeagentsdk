@@ -351,6 +351,20 @@ npx tsx scripts/repl.ts -h   # help; providers: claude, codex, opencode, gemini
 
 ---
 
+## Debug mode
+
+Set `CODING_AGENTS_DEBUG=1` (or any non-empty value) to log debugging information to stderr:
+
+- **Agent lifecycle** — when sessions and background sessions are created, when runs start and end
+- **Background agents** — when a turn starts (session dir, turn number, output file), when the background process is started (pid), and each time events are polled (cursor, event count)
+- **Unparsed output** — any CLI line that didn’t parse as an event (helps spot hangs where the agent prints something the SDK doesn’t recognize)
+
+```bash
+CODING_AGENTS_DEBUG=1 npx tsx scripts/repl-polling.ts
+```
+
+---
+
 ## Development
 
 ```bash

@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process"
 import * as readline from "node:readline"
 import { randomUUID } from "node:crypto"
+import { debugLog } from "../debug.js"
 import type {
   Event,
   IProvider,
@@ -117,6 +118,7 @@ export abstract class Provider implements IProvider {
 
     options = this._applySystemPrompt(options)
 
+    debugLog(`run start provider=${this.name} promptLength=${options.prompt?.length ?? 0}`)
     if (this.sandboxManager) {
       yield* this.runSandbox(options)
     } else if (this.allowLocalExecution) {
@@ -124,6 +126,7 @@ export abstract class Provider implements IProvider {
     } else {
       throw new Error("No execution mode configured")
     }
+    debugLog(`run end provider=${this.name}`)
   }
 
   private async _codexLoginIfNeeded(env: Record<string, string> | undefined): Promise<void> {
@@ -182,9 +185,14 @@ export abstract class Provider implements IProvider {
 
     const timeout = options.timeout ?? 120
 
+    debugLog(`runSandbox command start provider=${this.name} timeout=${timeout}`)
     let pendingToolEnd = false
     for await (const line of this.sandboxManager.executeCommandStream(fullCommand, timeout)) {
+      debugLog(`raw line (sandbox): ${line.length > 300 ? line.slice(0, 300) + "…" : line}`)
       const raw = this.parse(line)
+      if (raw === null) {
+        debugLog(`unparsed line (sandbox): ${line.length > 200 ? line.slice(0, 200) + "…" : line}`)
+      }
       const events = raw === null ? [] : Array.isArray(raw) ? raw : [raw]
       for (const event of events) {
         if (event.type === "session") {
@@ -199,6 +207,7 @@ export abstract class Provider implements IProvider {
         yield event
       }
     }
+    debugLog(`runSandbox stream ended provider=${this.name}`)
   }
 
   /**
@@ -232,8 +241,13 @@ export abstract class Provider implements IProvider {
     const rl = readline.createInterface({ input: proc.stdout! })
     let pendingToolEnd = false
 
+    debugLog(`runLocal started provider=${this.name}`)
     for await (const line of rl) {
+      debugLog(`raw line (local): ${line.length > 300 ? line.slice(0, 300) + "…" : line}`)
       const raw = this.parse(line)
+      if (raw === null) {
+        debugLog(`unparsed line (local): ${line.length > 200 ? line.slice(0, 200) + "…" : line}`)
+      }
       const events = raw === null ? [] : Array.isArray(raw) ? raw : [raw]
       for (const event of events) {
         if (event.type === "session") {
@@ -255,6 +269,7 @@ export abstract class Provider implements IProvider {
     // Wait for process to close
     await new Promise<void>((resolve, reject) => {
       proc.on("close", (code) => {
+        debugLog(`runLocal process closed provider=${this.name} code=${code}`)
         if (code && code !== 0) {
           reject(new Error(`Provider process exited with code ${code}`))
         } else {
@@ -340,7 +355,9 @@ export abstract class Provider implements IProvider {
     const meta = await this.readSandboxMeta(sessionDir)
     const nextTurn = (meta?.currentTurn ?? -1) + 1
     const outputFile = `${sessionDir}/${nextTurn}.jsonl`
+    debugLog(`background turn start provider=${this.name} sessionDir=${sessionDir} turn=${nextTurn} outputFile=${outputFile}`)
     const result = await this.startSandboxBackground({ ...options, outputFile })
+    debugLog(`background turn started provider=${this.name} pid=${result.pid} executionId=${result.executionId}`)
     await this.writeSandboxMeta(sessionDir, {
       currentTurn: nextTurn,
       cursor: 0,
@@ -393,6 +410,7 @@ export abstract class Provider implements IProvider {
     const currentTurn = meta?.currentTurn ?? 0
     const outputFile = `${sessionDir}/${currentTurn}.jsonl`
     const cursor = meta != null ? String(meta.cursor) : null
+    debugLog(`getEventsSandboxBackgroundFromMeta provider=${this.name} sessionDir=${sessionDir} turn=${currentTurn} cursor=${cursor}`)
     const result = await this.pollSandboxBackground(outputFile, cursor)
     await this.writeSandboxMeta(sessionDir, {
       currentTurn,
@@ -441,9 +459,11 @@ export abstract class Provider implements IProvider {
     const bgCommand = `bash -lc "${fullCommand.replace(/"/g, '\\"')} >> ${options.outputFile} 2>&1 & echo $!"`
     const timeout = options.timeout ?? 30
 
+    debugLog(`startSandboxBackground executing provider=${this.name} outputFile=${options.outputFile}`)
     const result = await this.sandboxManager.executeCommand(bgCommand, timeout)
     const raw = result.output.trim()
     const pid = Number(raw.split(/\s+/).pop() ?? "-1") || -1
+    debugLog(`startSandboxBackground done provider=${this.name} pid=${pid} rawOutput=${raw.slice(0, 80)}`)
 
     const executionId = randomUUID()
 
@@ -482,6 +502,7 @@ export abstract class Provider implements IProvider {
     const rawOutput = result.output ?? ""
 
     const rawLines = rawOutput.split("\n")
+    debugLog(`pollSandboxBackground provider=${this.name} outputFile=${outputFile} cursor=${cursor ?? "null"} rawLines=${rawLines.length}`)
     const lines: string[] = []
 
     const isJsonLine = (line: string): boolean => {
@@ -512,12 +533,19 @@ export abstract class Provider implements IProvider {
     }
 
     const slice = lines.slice(startIndex)
+    for (let i = 0; i < slice.length; i++) {
+      const l = slice[i]
+      debugLog(`raw line (background poll) [${startIndex + i}]: ${(l ?? "").length > 300 ? (l ?? "").slice(0, 300) + "…" : l ?? ""}`)
+    }
 
     const eventsOut: Event[] = []
     let status: "running" | "completed" = "running"
 
     for (const line of slice) {
       const raw = this.parse(line)
+      if (raw === null) {
+        debugLog(`unparsed line (background poll): ${line.length > 200 ? line.slice(0, 200) + "…" : line}`)
+      }
       const events = raw === null ? [] : Array.isArray(raw) ? raw : [raw]
       for (const event of events) {
         if (event.type === "session") {
@@ -531,6 +559,7 @@ export abstract class Provider implements IProvider {
     }
 
     const newCursor = encodeCursor(lines.length)
+    debugLog(`pollSandboxBackground result provider=${this.name} status=${status} events=${eventsOut.length} newCursor=${newCursor}`)
 
     return {
       status,

@@ -92,3 +92,6 @@ export {
   getPackageName,
   getInstallationStatus,
 } from "./utils/index.js"
+
+// Debug (enable with CODING_AGENTS_DEBUG=1)
+export { isDebugEnabled, debugLog } from "./debug.js"

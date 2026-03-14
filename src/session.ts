@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto"
 import type { ProviderName, ProviderOptions, RunDefaults, RunOptions, Event } from "./types/index.js"
+import { debugLog } from "./debug.js"
 import { createProvider } from "./factory.js"
 import type { Provider } from "./providers/base.js"
 import { adaptSandbox } from "./sandbox/index.js"
@@ -84,10 +85,12 @@ export interface BackgroundSession {
  * Returns the provider; call session.run(prompt) with just the prompt string.
  */
 export async function createSession(name: ProviderName, options: SessionOptions): Promise<Provider> {
+  debugLog("createSession", name)
   const { model, sessionId, timeout, systemPrompt, skipInstall, env, ...providerOptions } = options
   const runDefaults: RunDefaults = { model, sessionId, timeout, systemPrompt, skipInstall, env }
   const provider = createProvider(name, { ...providerOptions, skipInstall, env, runDefaults })
   await provider.ready
+  debugLog("createSession ready", name)
   return provider
 }
 
@@ -102,6 +105,7 @@ export async function createBackgroundSession(
 ): Promise<BackgroundSession> {
   const { backgroundSessionId, ...sessionOptions } = options
   const id = backgroundSessionId ?? randomUUID()
+  debugLog("createBackgroundSession", name, "id=" + id)
   return createBackgroundSessionWithId(name, { ...sessionOptions, backgroundSessionId: id }, id)
 }
 
@@ -114,12 +118,15 @@ export async function getBackgroundSession(
 ): Promise<BackgroundSession> {
   const { backgroundSessionId, sandbox } = options
   const sessionDir = `${CODEAGENT_SESSION_DIR_PREFIX}${backgroundSessionId}`
+  debugLog("getBackgroundSession", "id=" + backgroundSessionId, "sessionDir=" + sessionDir)
   const meta = await readProviderFromMeta(sandbox, sessionDir)
   if (!meta?.provider) {
+    debugLog("getBackgroundSession meta missing or no provider", backgroundSessionId)
     throw new Error(
       "Cannot get background session: meta not found (start a turn first) or meta has no provider"
     )
   }
+  debugLog("getBackgroundSession reattach provider=" + meta.provider)
   return createBackgroundSessionWithId(
     meta.provider,
     {
@@ -143,7 +150,8 @@ async function createBackgroundSessionWithId(
     id,
     provider,
     async start(prompt: string, extraOptions?: Omit<RunOptions, "prompt">) {
-      return provider.startSandboxBackgroundTurn(sessionDir, {
+      debugLog("BackgroundSession.start", "id=" + id, "sessionDir=" + sessionDir, "promptLength=" + prompt.length)
+      const result = await provider.startSandboxBackgroundTurn(sessionDir, {
         // Re-apply core run defaults (model, timeout, env, systemPrompt) for each turn.
         model: options.model,
         timeout: options.timeout,
@@ -153,6 +161,8 @@ async function createBackgroundSessionWithId(
         ...(extraOptions ?? {}),
         prompt,
       })
+      debugLog("BackgroundSession.start returned", "id=" + id, "pid=" + result.pid, "outputFile=" + result.outputFile)
+      return result
     },
     async getEvents() {
       return provider.getEventsSandboxBackgroundFromMeta(sessionDir)
