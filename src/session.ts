@@ -109,7 +109,7 @@ export async function createBackgroundSession(
   return createBackgroundSessionWithId(name, { ...sessionOptions, backgroundSessionId: id }, id)
 }
 
-/** Reattach to an existing background session by id (e.g. after restart). Provider is read from sandbox meta (set on first start). */
+/** Reattach to an existing background session by id (e.g. after restart). Provider is read from sandbox meta (written at session creation). */
 export async function getBackgroundSession(
   options: BackgroundSessionOptions & {
     backgroundSessionId: string
@@ -145,6 +145,7 @@ async function createBackgroundSessionWithId(
 ): Promise<BackgroundSession> {
   const provider = await createSession(name, options)
   const sessionDir = `${CODEAGENT_SESSION_DIR_PREFIX}${id}`
+  await provider.writeInitialSessionMeta(sessionDir)
 
   return {
     id,

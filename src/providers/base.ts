@@ -325,6 +325,17 @@ export abstract class Provider implements IProvider {
     }
   }
 
+  /** Write initial session meta at creation so getBackgroundSession can reattach before first start(). */
+  async writeInitialSessionMeta(sessionDir: string): Promise<void> {
+    if (!this.sandboxManager?.executeCommand) return
+    await this.writeSandboxMeta(sessionDir, {
+      currentTurn: -1,
+      cursor: 0,
+      provider: this.name,
+      sessionId: this.sessionId ?? null,
+    })
+  }
+
   protected async writeSandboxMeta(
     sessionDir: string,
     meta: {
