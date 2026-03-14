@@ -47,10 +47,11 @@ export type {
   EventHandler,
   IProvider,
   CodeAgentSandbox,
+  ExecuteBackgroundOptions,
   AdaptSandboxOptions,
 } from "./types/index.js"
 
-// Sandbox adapter (wrap a Daytona sandbox from @daytonaio/sdk)
+// Sandbox adapter (wrap a Daytona sandbox from @daytonaio/sdk; uses SSH for background start when createSshAccess exists)
 export { adaptDaytonaSandbox } from "./sandbox/index.js"
 
 // Providers

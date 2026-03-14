@@ -7,6 +7,17 @@ import type { Event } from "./events.js"
 /** Supported provider names */
 export type ProviderName = "claude" | "codex" | "opencode" | "gemini"
 
+/** Options for starting a background command that writes to a log file and signals when done. */
+export interface ExecuteBackgroundOptions {
+  /** Full command line to run (stdout/stderr should be appended to outputFile). */
+  command: string
+  /** Path in sandbox to append output to (e.g. /tmp/codeagent-<id>/0.jsonl). */
+  outputFile: string
+  /** Unique run id (used for logging; PID is returned from executeBackground). */
+  runId: string
+  timeout?: number
+}
+
 /**
  * Sandbox interface required by the SDK. Implement this yourself or use
  * adaptDaytonaSandbox() to wrap a Daytona Sandbox from @daytonaio/sdk.
@@ -17,6 +28,13 @@ export interface CodeAgentSandbox {
   executeCommandStream(command: string, timeout?: number): AsyncGenerator<string, void, unknown>
   /** Optional: run a one-off command (used e.g. for Codex login). */
   executeCommand?(command: string, timeout?: number): Promise<{ exitCode: number; output: string }>
+  /**
+   * Optional: start a command in the background and return its pid immediately.
+   * The sandbox must run the command with stdout/stderr >> outputFile and return
+   * the pid (e.g. via nohup + SSH so the channel closes right away). Implement
+   * this to avoid blocking on the command when using executeCommand.
+   */
+  executeBackground?(options: ExecuteBackgroundOptions): Promise<{ pid: number }>
 }
 
 /** Command configuration for spawning a provider process */

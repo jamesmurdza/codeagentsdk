@@ -146,7 +146,9 @@ export abstract class Provider implements IProvider {
   /** One-time setup: install CLI and set env. Run in microtask so subclass name is set. */
   private async _doSetup(): Promise<void> {
     if (!this.sandboxManager) return
+    const t = Date.now()
     await this.sandboxManager.ensureProvider(this.name)
+    console.log(`[timing] ensureProvider(${this.name}) took ${Date.now() - t}ms`)
     if (this._creationEnv) this.sandboxManager.setEnvVars(this._creationEnv)
   }
 
@@ -373,16 +375,20 @@ export abstract class Provider implements IProvider {
     sessionDir: string,
     options: RunOptions
   ): Promise<{ executionId: string; pid: number; outputFile: string }> {
+    const t0 = Date.now()
     if (!this.sandboxManager?.executeCommand) {
       throw new Error("Sandbox background mode requires a sandbox with executeCommand support")
     }
     await this.sandboxManager.executeCommand(`mkdir -p "${sessionDir}"`, 10)
+    console.log(`[timing] mkdir took ${Date.now() - t0}ms (elapsed ${Date.now() - t0}ms)`)
+    let t = Date.now()
     const meta = await this.readSandboxMeta(sessionDir)
+    console.log(`[timing] readSandboxMeta took ${Date.now() - t}ms (elapsed ${Date.now() - t0}ms)`)
     const currentTurn = meta?.currentTurn ?? 0
     const outputFile = `${sessionDir}/${currentTurn}.jsonl`
     const runId = randomUUID().slice(0, 8)
     debugLog(`background turn start provider=${this.name} sessionDir=${sessionDir} turn=${currentTurn} outputFile=${outputFile}`)
-    // Write meta with runId/outputFile first so getBackgroundSession + isRunning/getEvents see a run in progress immediately
+    t = Date.now()
     await this.writeSandboxMeta(sessionDir, {
       currentTurn,
       cursor: 0,
@@ -392,8 +398,12 @@ export abstract class Provider implements IProvider {
       provider: this.name,
       sessionId: this.sessionId ?? options.sessionId ?? meta?.sessionId ?? null,
     })
+    console.log(`[timing] writeSandboxMeta(1) took ${Date.now() - t}ms (elapsed ${Date.now() - t0}ms)`)
+    t = Date.now()
     const result = await this.startSandboxBackground({ ...options, outputFile, runId })
+    console.log(`[timing] startSandboxBackground took ${Date.now() - t}ms (elapsed ${Date.now() - t0}ms)`)
     debugLog(`background turn started provider=${this.name} pid=${result.pid} executionId=${result.executionId}`)
+    t = Date.now()
     await this.writeSandboxMeta(sessionDir, {
       currentTurn,
       cursor: 0,
@@ -404,7 +414,17 @@ export abstract class Provider implements IProvider {
       provider: this.name,
       sessionId: this.sessionId ?? options.sessionId ?? meta?.sessionId ?? null,
     })
+    console.log(`[timing] writeSandboxMeta(2) took ${Date.now() - t}ms (elapsed ${Date.now() - t0}ms)`)
     return { executionId: result.executionId, pid: result.pid, outputFile }
+  }
+
+  /**
+   * Get the current turn's process id from sandbox meta, or null if no run in progress.
+   */
+  async getSandboxBackgroundPid(sessionDir: string): Promise<number | null> {
+    const meta = await this.readSandboxMeta(sessionDir)
+    if (meta?.pid == null || meta.pid < 1) return null
+    return meta.pid
   }
 
   /**
@@ -421,19 +441,18 @@ export abstract class Provider implements IProvider {
 
   /**
    * Check if the current turn's process is still running in the sandbox.
-   * True only while a turn is in progress; false until the next turn starts. Uses only the .done file.
+   * True only while a turn is in progress; false until the next turn starts. Uses kill -0.
    */
   async isSandboxBackgroundProcessRunning(sessionDir: string): Promise<boolean> {
     const meta = await this.readSandboxMeta(sessionDir)
-    if (!meta?.runId || !meta.outputFile || !this.sandboxManager?.executeCommand) {
-      debugLog(`isRunning false (no run in progress) sessionDir=${sessionDir} runId=${meta?.runId ?? "null"}`)
+    if (meta?.pid == null || meta.pid < 1 || !this.sandboxManager?.executeCommand) {
+      debugLog(`isRunning false (no valid pid) sessionDir=${sessionDir} pid=${meta?.pid ?? "null"}`)
       return false
     }
-    const doneFile = `${meta.outputFile}.${meta.runId}.pid.done`
-    const result = await this.sandboxManager.executeCommand(`test -f "${doneFile}" && echo 1 || echo 0`, 10)
-    const codeStr = (result.output ?? "").trim().split(/\s+/).pop() ?? "1"
-    const running = codeStr !== "1"
-    debugLog(`isRunning doneFile=${doneFile} => ${running}`)
+    const result = await this.sandboxManager.executeCommand(`kill -0 ${meta.pid} 2>/dev/null; echo $?`, 10)
+    const exitCode = Number((result.output ?? "").trim().split(/\s+/).pop()) || 1
+    const running = exitCode === 0
+    debugLog(`isRunning kill -0 ${meta.pid} => ${running}`)
     return running
   }
 
@@ -462,15 +481,18 @@ export abstract class Provider implements IProvider {
     const sawEnd = meta.sawEnd || result.events.some((e) => e.type === "end")
     const stillRunning = await this.isSandboxBackgroundProcessRunning(sessionDir)
     if (!stillRunning) {
-      // Turn ended: increment currentTurn for next start(), clear run so isRunning stays false
+      // Turn ended: increment currentTurn; clear runId/outputFile only once we've seen end event
+      // so the next getEvents() can re-read the file and return the result/end line (path is correct).
       const nextTurn = (meta.currentTurn ?? 0) + 1
-      await this.writeSandboxMeta(sessionDir, {
+      const metaUpdate = {
         currentTurn: nextTurn,
         cursor: Number(result.cursor) || 0,
         sawEnd,
-        provider: this.name,
+        provider: this.name as import("../types/index.js").ProviderName,
         sessionId: this.sessionId ?? meta.sessionId ?? null,
-      })
+        ...(sawEnd ? {} : { outputFile: meta.outputFile, runId: meta.runId }),
+      }
+      await this.writeSandboxMeta(sessionDir, metaUpdate)
     } else {
       await this.writeSandboxMeta(sessionDir, {
         currentTurn: meta.currentTurn,
@@ -529,9 +551,14 @@ export abstract class Provider implements IProvider {
       throw new Error("Sandbox background mode requires a sandbox with executeCommand support")
     }
 
+    const t0 = Date.now()
+    let t = Date.now()
     await (this._readyPromise ?? Promise.resolve())
+    console.log(`[timing] _readyPromise took ${Date.now() - t}ms`)
+    t = Date.now()
     const optsWithSystem = this._applySystemPrompt(options)
     await this._applyRunEnv(optsWithSystem)
+    console.log(`[timing] _applyRunEnv took ${Date.now() - t}ms`)
 
     const { cmd, args, env: cmdEnv } = this.getCommand(optsWithSystem)
 
@@ -546,17 +573,24 @@ export abstract class Provider implements IProvider {
     )].join(" ")
 
     const runId = options.runId ?? randomUUID().slice(0, 8)
-    const pidFile = `${options.outputFile}.${runId}.pid`
-    const doneFile = `${pidFile}.done`
-    const bgCommand = `bash -lc "( ( ${fullCommand.replace(/"/g, '\\"')} >> ${options.outputFile} 2>&1 ; echo 1 > ${doneFile} ) & echo \\$! > ${pidFile} )"`
     const timeout = options.timeout ?? 30
 
+    if (typeof this.sandboxManager.executeBackground !== "function") {
+      throw new Error(
+        "Background sessions require a sandbox with executeBackground (e.g. Daytona sandbox with createSshAccess())."
+      )
+    }
     debugLog(`startSandboxBackground executing provider=${this.name} outputFile=${options.outputFile} runId=${runId}`)
-    await this.sandboxManager.executeCommand(bgCommand, timeout)
-    const pidResult = await this.sandboxManager.executeCommand(`cat ${pidFile} 2>/dev/null || true`, 5)
-    const raw = (pidResult.output ?? "").trim()
-    const pid = Number(raw.split(/\s+/)[0] ?? "-1") || -1
-    debugLog(`startSandboxBackground done provider=${this.name} pid=${pid} rawOutput=${raw.slice(0, 80)}`)
+    t = Date.now()
+    const result = await this.sandboxManager.executeBackground({
+      command: fullCommand,
+      outputFile: options.outputFile,
+      runId,
+      timeout,
+    })
+    console.log(`[timing] executeBackground took ${Date.now() - t}ms (total startSandboxBackground ${Date.now() - t0}ms)`)
+    const pid = result.pid
+    debugLog(`startSandboxBackground done provider=${this.name} pid=${pid}`)
 
     const executionId = randomUUID()
 

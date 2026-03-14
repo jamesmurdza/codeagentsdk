@@ -76,6 +76,9 @@ export interface BackgroundSession {
   /** True if the current turn's process is still running in the sandbox (e.g. detect crash). */
   isRunning(): Promise<boolean>
 
+  /** Current turn's process id from sandbox meta, or null if no run in progress. */
+  getPid(): Promise<number | null>
+
   /** Cancel the current turn's process in the sandbox (no-op if not running). */
   cancel(): Promise<void>
 }
@@ -170,6 +173,9 @@ async function createBackgroundSessionWithId(
     },
     async isRunning() {
       return provider.isSandboxBackgroundProcessRunning(sessionDir)
+    },
+    async getPid() {
+      return provider.getSandboxBackgroundPid(sessionDir)
     },
     async cancel() {
       return provider.cancelSandboxBackground(sessionDir)
