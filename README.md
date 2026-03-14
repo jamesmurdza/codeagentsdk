@@ -190,7 +190,7 @@ Returns an async iterable of events. Stream and handle them uniformly across pro
 
 ```typescript
 for await (const event of session.run("Hello")) {
-  // event.type: "session" | "token" | "tool_start" | "tool_delta" | "tool_end" | "end"
+  // event.type: "session" | "token" | "tool_start" | "tool_delta" | "tool_end" | "end" | "agent_crashed"
 }
 ```
 
@@ -204,6 +204,7 @@ for await (const event of session.run("Hello")) {
 | `tool_delta` | Streaming tool input | `text: string` |
 | `tool_end` | Tool finished | `output?: string` |
 | `end` | Turn complete | — |
+| `agent_crashed` | Process exited without completing (crash/kill) | `message?: string`, `output?: string` (raw tail of stdout/stderr; often not JSONL) |
 
 ```typescript
 type Event =
@@ -213,6 +214,7 @@ type Event =
   | { type: "tool_delta"; text: string }
   | { type: "tool_end"; output?: string }
   | { type: "end" }
+  | { type: "agent_crashed"; message?: string; output?: string }
 ```
 
 ### Normalized tool names
@@ -249,7 +251,7 @@ For long-running or restart-tolerant flows: start the agent in the sandbox, writ
 
 - **Session ID** — One UUID per background session; host stores only this.
 - **Layout** — One directory per session (e.g. `/tmp/codeagent-<id>/`), one JSONL file per turn (`0.jsonl`, `1.jsonl`, …), plus `meta.json` (currentTurn, cursor, pid).
-- **Crash detection** — Use `bgSession.isRunning()`; if the process dies you may not see an `end` event.
+- **Crash detection** — If the process exits without completing, **getEvents** returns an `agent_crashed` event. You can treat it like `end` to stop polling and show a warning.
 
 **Example:** start, persist `sandboxId` and `backgroundSessionId`, then reattach after a restart.
 
