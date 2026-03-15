@@ -28,8 +28,9 @@ interface ClaudeAssistantMessage {
 
 interface ClaudeResult {
   type: "result"
-  subtype: "success" | "error"
+  subtype?: "success" | "error" | "error_during_execution" | "error_max_turns"
   result?: string
+  error?: string
   session_id: string
 }
 
@@ -180,9 +181,14 @@ export class ClaudeProvider extends Provider {
       }
     }
 
-    // Result event marks end of interaction
+    // Result event marks end of interaction (success or CLI error)
     if (json.type === "result") {
-      return { type: "end" }
+      const err =
+        (json as ClaudeResult).subtype === "error_during_execution" ||
+        (json as ClaudeResult).subtype === "error"
+          ? (json as ClaudeResult).error ?? (json as ClaudeResult).result ?? "Unknown error"
+          : undefined
+      return { type: "end", ...(err ? { error: err } : {}) }
     }
 
     return null

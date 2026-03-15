@@ -131,6 +131,8 @@ export interface ToolEndEvent {
 /** End event - indicates the message/turn is complete */
 export interface EndEvent {
   type: "end"
+  /** When the CLI failed (e.g. error_during_execution), the error message if available */
+  error?: string
 }
 
 /** Agent crashed event - process exited without emitting end (e.g. crash or kill) */
