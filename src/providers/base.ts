@@ -301,6 +301,7 @@ export abstract class Provider implements IProvider {
   protected async readSandboxMeta(sessionDir: string): Promise<{
     currentTurn: number
     cursor: number
+    rawCursor?: number
     pid?: number
     runId?: string
     outputFile?: string
@@ -320,6 +321,7 @@ export abstract class Provider implements IProvider {
       const o = JSON.parse(raw) as {
         currentTurn?: number
         cursor?: number
+        rawCursor?: number
         pid?: number
         runId?: string
         outputFile?: string
@@ -332,6 +334,7 @@ export abstract class Provider implements IProvider {
       return {
         currentTurn: o.currentTurn,
         cursor: o.cursor,
+        rawCursor: o.rawCursor,
         pid: o.pid,
         runId: o.runId,
         outputFile: o.outputFile,
@@ -361,6 +364,7 @@ export abstract class Provider implements IProvider {
     meta: {
       currentTurn: number
       cursor: number
+      rawCursor?: number
       pid?: number
       runId?: string
       outputFile?: string
@@ -506,7 +510,11 @@ export abstract class Provider implements IProvider {
     const outputFile = meta.outputFile
     const cursor = String(meta.cursor)
     debugLog(`getEventsSandboxBackgroundFromMeta provider=${this.name} sessionDir=${sessionDir} turn=${meta.currentTurn} cursor=${cursor}`, this.sessionId)
-    const result = await this.pollSandboxBackground(outputFile, cursor)
+    const result = await this.pollSandboxBackground(
+      outputFile,
+      cursor,
+      meta.rawCursor != null ? String(meta.rawCursor) : null
+    )
     const sawEnd = meta.sawEnd || result.events.some((e) => e.type === "end")
     const stillRunning = await this.isSandboxBackgroundProcessRunning(sessionDir)
     // Clear run when process stopped or we've seen end event (sawEnd can be true before .done file exists)
@@ -515,6 +523,7 @@ export abstract class Provider implements IProvider {
       const metaUpdate = {
         currentTurn: nextTurn,
         cursor: Number(result.cursor) || 0,
+        rawCursor: Number(result.rawCursor) || meta.rawCursor || 0,
         sawEnd,
         provider: this.name as import("../types/index.js").ProviderName,
         sessionId: this.sessionId ?? meta.sessionId ?? null,
@@ -526,6 +535,7 @@ export abstract class Provider implements IProvider {
       await this.writeSandboxMeta(sessionDir, {
         currentTurn: meta.currentTurn,
         cursor: Number(result.cursor) || 0,
+        rawCursor: Number(result.rawCursor) || meta.rawCursor || 0,
         pid: meta.pid,
         runId: meta.runId,
         outputFile: meta.outputFile,
@@ -558,6 +568,7 @@ export abstract class Provider implements IProvider {
       await this.writeSandboxMeta(sessionDir, {
         currentTurn: nextTurn,
         cursor: Number(result.cursor) || 0,
+        rawCursor: Number(result.rawCursor) || meta.rawCursor || 0,
         sawEnd: true,
         provider: this.name,
         sessionId: this.sessionId ?? meta.sessionId ?? null,
@@ -645,12 +656,14 @@ export abstract class Provider implements IProvider {
    */
   async pollSandboxBackground(
     outputFile: string,
-    cursor?: string | null
+    cursor?: string | null,
+    rawCursor?: string | null
   ): Promise<{
     status: "running" | "completed"
     sessionId: string | null
     events: Event[]
     cursor: string
+    rawCursor: string
   }> {
     if (!this.sandboxManager || !this.sandboxManager.executeCommand) {
       throw new Error("Sandbox background mode requires a sandbox with executeCommand support")
@@ -660,6 +673,7 @@ export abstract class Provider implements IProvider {
     const encodeCursor = (index: number) => String(index)
 
     const startIndex = decodeCursor(cursor)
+    const rawStartIndex = decodeCursor(rawCursor)
 
     const catCommand = `cat ${outputFile}`
     const result = await this.sandboxManager.executeCommand(catCommand, 30)
@@ -674,9 +688,12 @@ export abstract class Provider implements IProvider {
       return trimmed.startsWith("{") && trimmed.endsWith("}")
     }
 
-    const isRereading = startIndex >= rawLines.length
+    const isRereading = rawStartIndex >= rawLines.length
     for (let i = 0; i < rawLines.length; i++) {
       const line = rawLines[i]
+      if (i >= rawStartIndex) {
+        debugLog(`raw file line [${i}]: ${line}`, this.sessionId)
+      }
       const trimmed = line.trim()
       if (!trimmed) continue
       if (!isJsonLine(trimmed) && i === rawLines.length - 1) {
@@ -694,11 +711,13 @@ export abstract class Provider implements IProvider {
       // No new JSONL events since the last cursor; keep status as running
       // and only advance the cursor based on JSON lines, not raw lines.
       const nextCursor = lines.length
+      const nextRawCursor = encodeCursor(rawLines.length)
       return {
         status: "running",
         sessionId: this.sessionId,
         events: [],
         cursor: encodeCursor(nextCursor),
+        rawCursor: nextRawCursor,
       }
     }
 
@@ -732,13 +751,18 @@ export abstract class Provider implements IProvider {
     }
 
     const newCursor = encodeCursor(lines.length)
-    debugLog(`pollSandboxBackground result provider=${this.name} status=${status} events=${eventsOut.length} newCursor=${newCursor}`, this.sessionId)
+    const newRawCursor = encodeCursor(rawLines.length)
+    debugLog(
+      `pollSandboxBackground result provider=${this.name} status=${status} events=${eventsOut.length} newCursor=${newCursor} newRawCursor=${newRawCursor}`,
+      this.sessionId
+    )
 
     return {
       status,
       sessionId: this.sessionId,
       events: eventsOut,
       cursor: newCursor,
+      rawCursor: newRawCursor,
     }
   }
 
