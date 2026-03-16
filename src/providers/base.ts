@@ -188,6 +188,7 @@ export abstract class Provider implements IProvider {
     const timeout = options.timeout ?? 120
 
     debugLog(`runSandbox command start provider=${this.name} timeout=${timeout}`, this.sessionId)
+    debugLog("runSandbox cli", this.sessionId, fullCommand)
     let pendingToolEnd = false
     for await (const line of this.sandboxManager.executeCommandStream(fullCommand, timeout)) {
       debugLog(`raw line (sandbox): ${line.length > 300 ? line.slice(0, 300) + "…" : line}`, this.sessionId)
@@ -234,6 +235,9 @@ export abstract class Provider implements IProvider {
     }
 
     const { cmd, args, env: cmdEnv } = this.getCommand(options)
+
+    const cliCommand = [cmd, ...args].join(" ")
+    debugLog("runLocal cli", this.sessionId, cliCommand)
 
     const proc = spawn(cmd, args, {
       stdio: ["inherit", "pipe", "inherit"],
