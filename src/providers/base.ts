@@ -680,13 +680,13 @@ export abstract class Provider implements IProvider {
       const trimmed = line.trim()
       if (!trimmed) continue
       if (!isJsonLine(trimmed) && i === rawLines.length - 1) {
-        if (!isRereading) debugLog(`background poll skipped (partial last line) [${i}]: ${trimmed.length > 400 ? trimmed.slice(0, 400) + "…" : trimmed}`, this.sessionId)
+        if (!isRereading) debugLog(`background poll skipped (partial last line) [${i}]: ${trimmed}`, this.sessionId)
         continue
       }
       if (isJsonLine(trimmed)) {
         lines.push(trimmed)
       } else {
-        if (!isRereading) debugLog(`background poll skipped (not JSONL) [${i}]: ${trimmed.length > 400 ? trimmed.slice(0, 400) + "…" : trimmed}`, this.sessionId)
+        if (!isRereading) debugLog(`background poll skipped (not JSONL) [${i}]: ${trimmed}`, this.sessionId)
       }
     }
 
@@ -706,7 +706,7 @@ export abstract class Provider implements IProvider {
     const slice = lines.slice(startIndex)
     for (let i = 0; i < slice.length; i++) {
       const l = slice[i]
-      debugLog(`raw line (background poll) [${startIndex + i}]: ${(l ?? "").length > 300 ? (l ?? "").slice(0, 300) + "…" : l ?? ""}`, this.sessionId)
+      debugLog(`raw line (background poll) [${startIndex + i}]: ${l ?? ""}`, this.sessionId)
     }
 
     const eventsOut: Event[] = []
