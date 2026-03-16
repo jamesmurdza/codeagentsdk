@@ -126,5 +126,19 @@ describe("CodexProvider", () => {
 
       expect(event).toBeNull()
     })
+
+    it("should parse turn.failed event with error", () => {
+      const provider = createTestProvider()
+      const event = provider.parse('{"type": "turn.failed", "error": {"message": "API rate limit exceeded"}}')
+
+      expect(event).toEqual({ type: "end", error: "API rate limit exceeded" })
+    })
+
+    it("should parse error event with message", () => {
+      const provider = createTestProvider()
+      const event = provider.parse('{"type": "error", "message": "unexpected status 401 Unauthorized"}')
+
+      expect(event).toEqual({ type: "end", error: "unexpected status 401 Unauthorized" })
+    })
   })
 })

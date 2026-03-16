@@ -246,16 +246,14 @@ export class CodexProvider extends Provider {
       return { type: "end" }
     }
 
-    // Turn failed - treat as end with error info logged
+    // Turn failed - emit end event with error
     if (json.type === "turn.failed") {
-      console.error("[Codex Error]", json.error?.message)
-      return { type: "end" }
+      return { type: "end", error: json.error?.message }
     }
 
-    // Error event - log and continue
+    // Error event - emit as end with error (these are typically fatal errors like auth failures)
     if (json.type === "error") {
-      console.error("[Codex Error]", json.message)
-      return null
+      return { type: "end", error: json.message }
     }
 
     return null
