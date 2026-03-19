@@ -26,7 +26,7 @@ Same pattern for any provider: create a sandbox, create a session, stream events
 
 - **Secure by default** — Execution runs in isolated Daytona sandboxes
 - **Real-time streaming** — PTY-based streaming for live token output
-- **Unified API** — One interface for [Claude](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://developers.openai.com/codex/cli), [Gemini](https://geminicli.com/docs/), and [OpenCode](https://opencode.ai/docs/)
+- **Unified API** — One interface for [Claude](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://developers.openai.com/codex/cli), [Gemini](https://github.com/google-gemini/gemini-cli), and [OpenCode](https://opencode.ai/docs/)
 - **Zero-friction setup** — Provider CLI is installed when you create a session (`skipInstall: true` to skip). Env and Codex login run on every `run()`.
 - **Session persistence** — Resume conversations across runs
 
@@ -39,7 +39,7 @@ Same pattern for any provider: create a sandbox, create a session, stream events
 | [Claude](https://docs.anthropic.com/en/docs/claude-code) | ✅ | `ANTHROPIC_API_KEY` |
 | [Codex](https://developers.openai.com/codex/cli) | ✅ | `OPENAI_API_KEY` |
 | [OpenCode](https://opencode.ai/docs/) | ✅ | Provider-specific (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`) |
-| [Gemini](https://geminicli.com/docs/) | 🚧 | `GOOGLE_API_KEY` |
+| [Gemini](https://github.com/google-gemini/gemini-cli) | 🚧 | `GEMINI_API_KEY` |
 
 ---
 
@@ -172,7 +172,7 @@ Each provider is invoked via its CLI. Optional flags in brackets.
 | Provider | Command |
 |----------|---------|
 | **Claude** | `claude -p --output-format stream-json --verbose --dangerously-skip-permissions` `[--model <m>] [--resume <id>]` `<prompt>` |
-| **Codex** | `codex exec --json --skip-git-repo-check --yolo` `[--model <m>] [resume <id>]` `<prompt>` |
+| **Codex** | `codex exec --json --skip-git-repo-check --yolo` `[--model <m>] [--resume <id>]` `<prompt>` |
 | **OpenCode** | `opencode run --format json --variant medium -m <model>` `[-s <id>]` `<prompt>` (via `bash -lc "…"`) |
 | **Gemini** | `gemini -p --output-format stream-json --yolo` `[--model <m>] [--resume <id>]` `<prompt>` |
 
@@ -182,13 +182,14 @@ Each provider is invoked via its CLI. Optional flags in brackets.
 
 ### `createSession(provider, options)`
 
-Creates a session with the given provider and options (e.g. `sandbox`, `model`, `timeout`). Installs the provider CLI in the sandbox before returning unless `skipInstall: true`. Codex login runs automatically on each `run()` when needed.
+Creates a session with the given provider and options (e.g. `sandbox`, `model`, `timeout`, `systemPrompt`). Installs the provider CLI in the sandbox before returning unless `skipInstall: true`. Codex login runs automatically on each `run()` when needed.
 
 ```typescript
 const session = await createSession("claude", {
   sandbox,
   model: "sonnet",
   timeout: 120,
+  systemPrompt: "You are a helpful coding assistant.",
 })
 ```
 
