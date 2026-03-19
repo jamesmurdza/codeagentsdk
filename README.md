@@ -39,7 +39,7 @@ Same pattern for any provider: create a sandbox, create a session, stream events
 | [Claude](https://docs.anthropic.com/en/docs/claude-code) | ✅ | `ANTHROPIC_API_KEY` |
 | [Codex](https://developers.openai.com/codex/cli) | ✅ | `OPENAI_API_KEY` |
 | [OpenCode](https://opencode.ai/docs/) | ✅ | Provider-specific (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`) |
-| [Gemini](https://geminicli.com/docs/) | 🚧 | `GOOGLE_API_KEY` |
+| [Gemini](https://geminicli.com/docs/) | 🚧 | `GEMINI_API_KEY` |
 
 ---
 
@@ -172,7 +172,7 @@ Each provider is invoked via its CLI. Optional flags in brackets.
 | Provider | Command |
 |----------|---------|
 | **Claude** | `claude -p --output-format stream-json --verbose --dangerously-skip-permissions` `[--model <m>] [--resume <id>]` `<prompt>` |
-| **Codex** | `codex exec --json --skip-git-repo-check --yolo` `[--model <m>] [resume <id>]` `<prompt>` |
+| **Codex** | `codex exec --json --skip-git-repo-check --yolo` `[--model <m>] [--resume <id>]` `<prompt>` |
 | **OpenCode** | `opencode run --format json --variant medium -m <model>` `[-s <id>]` `<prompt>` (via `bash -lc "…"`) |
 | **Gemini** | `gemini -p --output-format stream-json --yolo` `[--model <m>] [--resume <id>]` `<prompt>` |
 
@@ -182,13 +182,14 @@ Each provider is invoked via its CLI. Optional flags in brackets.
 
 ### `createSession(provider, options)`
 
-Creates a session with the given provider and options (e.g. `sandbox`, `model`, `timeout`). Installs the provider CLI in the sandbox before returning unless `skipInstall: true`. Codex login runs automatically on each `run()` when needed.
+Creates a session with the given provider and options (e.g. `sandbox`, `model`, `timeout`, `systemPrompt`). Installs the provider CLI in the sandbox before returning unless `skipInstall: true`. Codex login runs automatically on each `run()` when needed.
 
 ```typescript
 const session = await createSession("claude", {
   sandbox,
   model: "sonnet",
   timeout: 120,
+  systemPrompt: "You are a helpful coding assistant.",
 })
 ```
 
@@ -331,7 +332,7 @@ DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npx tsx scripts/repl.ts
 # Other providers
 npx tsx scripts/repl.ts --provider codex   # OPENAI_API_KEY
 npx tsx scripts/repl.ts --provider opencode
-npx tsx scripts/repl.ts --provider gemini  # GEMINI_API_KEY (or GOOGLE_API_KEY)
+npx tsx scripts/repl.ts --provider gemini  # GEMINI_API_KEY
 
 # Polling-based (background session)
 DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npx tsx scripts/repl-polling.ts

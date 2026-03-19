@@ -106,9 +106,9 @@ async function main() {
   if (GEMINI_API_KEY && DAYTONA_API_KEY) {
     console.log("\n--- Creating sandbox for Gemini ---")
     const daytona = new Daytona({ apiKey: DAYTONA_API_KEY })
-    const sandbox = await daytona.create({ envVars: { GOOGLE_API_KEY: GEMINI_API_KEY } })
+    const sandbox = await daytona.create({ envVars: { GEMINI_API_KEY } })
     try {
-      await testProvider("Gemini", "gemini", sandbox, { GOOGLE_API_KEY: GEMINI_API_KEY })
+      await testProvider("Gemini", "gemini", sandbox, { GEMINI_API_KEY })
     } finally {
       await sandbox.delete()
     }
