@@ -64,13 +64,20 @@ async function pollUntilEnd(
   const deadline = Date.now() + timeoutMs
   let allEvents: Event[] = []
 
+  console.log(`[pollUntilEnd] Starting poll, timeout=${timeoutMs}ms, interval=${pollIntervalMs}ms`)
+
   while (Date.now() < deadline) {
     const { events } = await bg.getEvents()
     allEvents = events
-    if (events.some((e) => e.type === "end")) break
+    console.log(`[pollUntilEnd] Received ${events.length} events, types: ${events.map(e => e.type).join(', ')}`)
+    if (events.some((e) => e.type === "end")) {
+      console.log(`[pollUntilEnd] Found end event, stopping poll`)
+      break
+    }
     await new Promise((r) => setTimeout(r, pollIntervalMs))
   }
 
+  console.log(`[pollUntilEnd] Final event count: ${allEvents.length}`)
   return allEvents
 }
 
@@ -80,9 +87,12 @@ async function collectStreamEvents(
   prompt: string
 ): Promise<Event[]> {
   const events: Event[] = []
+  console.log(`[collectStreamEvents] Starting to collect events for prompt: "${prompt}"`)
   for await (const event of session.run(prompt)) {
+    console.log(`[collectStreamEvents] Received event: type=${event.type}`)
     events.push(event)
   }
+  console.log(`[collectStreamEvents] Collected ${events.length} total events, types: ${events.map(e => e.type).join(', ')}`)
   return events
 }
 
@@ -110,18 +120,23 @@ describe.skipIf(!DAYTONA_API_KEY)("provider integration tests", () => {
 
       describe("background mode", () => {
         it("completes a simple prompt and returns events", async () => {
+          console.log(`[${provider.name}] Creating background session`)
           const bg = await createBackgroundSession(provider.name, {
             sandbox: sandbox as any,
             timeout: 120,
             model: provider.model,
+            env: { [provider.apiKeyEnvVar]: provider.apiKey! },
           })
 
+          console.log(`[${provider.name}] Starting with prompt: "${SIMPLE_PROMPT}"`)
           const startResult = await bg.start(SIMPLE_PROMPT)
+          console.log(`[${provider.name}] Started with PID=${startResult.pid}, outputFile=${startResult.outputFile}`)
 
           expect(startResult.pid).toBeGreaterThan(0)
           expect(startResult.outputFile).toBeDefined()
 
           const events = await pollUntilEnd(bg)
+          console.log(`[${provider.name}] Event types received: ${events.map(e => e.type).join(', ')}`)
 
           expect(events.length).toBeGreaterThan(0)
           expect(events.some((e) => e.type === "end")).toBe(true)
@@ -134,6 +149,7 @@ describe.skipIf(!DAYTONA_API_KEY)("provider integration tests", () => {
             sandbox: sandbox as any,
             timeout: 120,
             model: provider.model,
+            env: { [provider.apiKeyEnvVar]: provider.apiKey! },
           })
 
           await bg.start(SIMPLE_PROMPT)
@@ -155,6 +171,7 @@ describe.skipIf(!DAYTONA_API_KEY)("provider integration tests", () => {
             sandbox: sandbox as any,
             timeout: 120,
             model: provider.model,
+            env: { [provider.apiKeyEnvVar]: provider.apiKey! },
           })
 
           const { pid: startPid } = await bg.start(SIMPLE_PROMPT)
@@ -170,13 +187,16 @@ describe.skipIf(!DAYTONA_API_KEY)("provider integration tests", () => {
 
       describe("streaming mode", () => {
         it("streams events for a simple prompt", async () => {
+          console.log(`[${provider.name}] Creating streaming session`)
           const session = await createSession(provider.name, {
             sandbox: sandbox as any,
             timeout: 120,
             model: provider.model,
+            env: { [provider.apiKeyEnvVar]: provider.apiKey! },
           })
 
           const events = await collectStreamEvents(session, SIMPLE_PROMPT)
+          console.log(`[${provider.name}] Collected event types: ${events.map(e => e.type).join(', ')}`)
 
           expect(events.length).toBeGreaterThan(0)
           expect(events.some((e) => e.type === "end")).toBe(true)
@@ -188,6 +208,7 @@ describe.skipIf(!DAYTONA_API_KEY)("provider integration tests", () => {
             sandbox: sandbox as any,
             timeout: 120,
             model: provider.model,
+            env: { [provider.apiKeyEnvVar]: provider.apiKey! },
           })
 
           const events = await collectStreamEvents(session, SIMPLE_PROMPT)
