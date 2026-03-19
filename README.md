@@ -172,7 +172,7 @@ Each provider is invoked via its CLI. Optional flags in brackets.
 | Provider | Command |
 |----------|---------|
 | **Claude** | `claude -p --output-format stream-json --verbose --dangerously-skip-permissions` `[--model <m>] [--resume <id>]` `<prompt>` |
-| **Codex** | `codex exec --json --skip-git-repo-check --yolo` `[--model <m>] [resume <id>]` `<prompt>` |
+| **Codex** | `codex exec --json --skip-git-repo-check --yolo` `[--model <m>] [--resume <id>]` `<prompt>` |
 | **OpenCode** | `opencode run --format json --variant medium -m <model>` `[-s <id>]` `<prompt>` (via `bash -lc "…"`) |
 | **Gemini** | `gemini -p --output-format stream-json --yolo` `[--model <m>] [--resume <id>]` `<prompt>` |
 
@@ -182,13 +182,14 @@ Each provider is invoked via its CLI. Optional flags in brackets.
 
 ### `createSession(provider, options)`
 
-Creates a session with the given provider and options (e.g. `sandbox`, `model`, `timeout`). Installs the provider CLI in the sandbox before returning unless `skipInstall: true`. Codex login runs automatically on each `run()` when needed.
+Creates a session with the given provider and options (e.g. `sandbox`, `model`, `timeout`, `systemPrompt`). Installs the provider CLI in the sandbox before returning unless `skipInstall: true`. Codex login runs automatically on each `run()` when needed.
 
 ```typescript
 const session = await createSession("claude", {
   sandbox,
   model: "sonnet",
   timeout: 120,
+  systemPrompt: "You are a helpful coding assistant.",
 })
 ```
 
