@@ -134,17 +134,13 @@ export abstract class Provider implements IProvider {
       this.name !== "codex" ||
       !env?.OPENAI_API_KEY ||
       !this.sandboxManager?.executeCommand
-    ) {
-      debugLog(`_codexLoginIfNeeded skipped: name=${this.name} hasKey=${!!env?.OPENAI_API_KEY} hasSandbox=${!!this.sandboxManager?.executeCommand}`, this.sessionId)
+    )
       return
-    }
-    debugLog(`_codexLoginIfNeeded running codex login`, this.sessionId)
     const safeKey = env.OPENAI_API_KEY.replace(/'/g, "'\\''")
-    const output = await this.sandboxManager.executeCommand(
+    await this.sandboxManager.executeCommand(
       `echo '${safeKey}' | codex login --with-api-key 2>&1`,
       30
     )
-    debugLog(`_codexLoginIfNeeded result: ${output}`, this.sessionId)
   }
 
   /** One-time setup: install CLI and set env. Run in microtask so subclass name is set. */
