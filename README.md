@@ -39,7 +39,7 @@ Same pattern for any provider: create a sandbox, create a session, stream events
 | [Claude](https://docs.anthropic.com/en/docs/claude-code) | ✅ | `ANTHROPIC_API_KEY` |
 | [Codex](https://developers.openai.com/codex/cli) | ✅ | `OPENAI_API_KEY` |
 | [OpenCode](https://opencode.ai/docs/) | ✅ | Provider-specific (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`) |
-| [Gemini](https://geminicli.com/docs/) | 🚧 | `GOOGLE_API_KEY` |
+| [Gemini](https://geminicli.com/docs/) | 🚧 | `GEMINI_API_KEY` |
 
 ---
 
@@ -332,7 +332,7 @@ DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npx tsx scripts/repl.ts
 # Other providers
 npx tsx scripts/repl.ts --provider codex   # OPENAI_API_KEY
 npx tsx scripts/repl.ts --provider opencode
-npx tsx scripts/repl.ts --provider gemini  # GEMINI_API_KEY (or GOOGLE_API_KEY)
+npx tsx scripts/repl.ts --provider gemini  # GEMINI_API_KEY
 
 # Polling-based (background session)
 DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npx tsx scripts/repl-polling.ts
