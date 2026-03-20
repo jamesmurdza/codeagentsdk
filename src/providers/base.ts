@@ -66,7 +66,7 @@ export abstract class Provider implements IProvider {
         "Provider requires either a sandbox or dangerouslyAllowLocalExecution: true. " +
         "For secure execution, create a sandbox with @daytonaio/sdk and pass it in:\n\n" +
         "  import { Daytona } from '@daytonaio/sdk'\n" +
-        "  import { createProvider } from '@jamesmurdza/coding-agents-sdk'\n" +
+        "  import { createProvider } from 'background-agents'\n" +
         "  const daytona = new Daytona({ apiKey: '...' })\n" +
         "  const sandbox = await daytona.create({ envVars: { ANTHROPIC_API_KEY: '...' } })\n" +
         "  const provider = createProvider('claude', { sandbox })\n\n" +

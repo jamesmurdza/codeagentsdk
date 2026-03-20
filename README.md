@@ -4,7 +4,7 @@ A unified TypeScript interface for AI coding agents—Claude, Codex, Gemini, and
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
-import { createSession } from "@jamesmurdza/coding-agents-sdk"
+import { createSession } from "background-agents"
 
 const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
 const sandbox = await daytona.create()
@@ -59,7 +59,7 @@ export DAYTONA_API_KEY=dtn_your_api_key
 ## Installation
 
 ```bash
-npm install @jamesmurdza/coding-agents-sdk
+npm install background-agents
 ```
 
 For sandboxed execution, also install the Daytona SDK:
@@ -72,7 +72,7 @@ npm install @daytonaio/sdk
 
 ```js
 // next.config.js or next.config.mjs
-import codeagentsdk from '@jamesmurdza/coding-agents-sdk/next.config'
+import codeagentsdk from 'background-agents/next.config'
 export default { ...codeagentsdk, ...yourConfig }
 ```
 
@@ -84,7 +84,7 @@ export default { ...codeagentsdk, ...yourConfig }
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
-import { createSession } from "@jamesmurdza/coding-agents-sdk"
+import { createSession } from "background-agents"
 
 const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
 const sandbox = await daytona.create()
@@ -135,7 +135,7 @@ End-to-end example with event handling and cleanup:
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
-import { createSession } from "@jamesmurdza/coding-agents-sdk"
+import { createSession } from "background-agents"
 
 async function main() {
   const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
@@ -293,7 +293,7 @@ For long-running or restart-tolerant flows: start the agent in the sandbox, writ
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
-import { createBackgroundSession, getBackgroundSession } from "@jamesmurdza/coding-agents-sdk"
+import { createBackgroundSession, getBackgroundSession } from "background-agents"
 
 const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY! })
 const sandbox = await daytona.create()

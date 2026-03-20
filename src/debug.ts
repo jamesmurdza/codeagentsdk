@@ -12,7 +12,7 @@ export function isDebugEnabled(): boolean {
   return DEBUG_ENABLED
 }
 
-const PREFIX = "[coding-agents-sdk]"
+const PREFIX = "[background-agents]"
 
 export function debugLog(message: string, sessionId?: string | null, ...args: unknown[]): void {
   if (!DEBUG_ENABLED) return
